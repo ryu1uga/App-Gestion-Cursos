@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Gestión de Cursos",
+    "slug": "gestion-cursos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "gestioncursos",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#3355f5"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ryuichi.gestioncursos"
+    },
+    "android": {
+      "package": "com.ryuichi.gestioncursos",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#3355f5"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "29d8c586-d658-4f6d-88de-36fd519e7ea6"
+      }
+    }
+  }
+}
