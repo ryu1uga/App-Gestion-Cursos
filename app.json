@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Gestión de Cursos",
-    "slug": "gestion-cursos",
+    "slug": "app-gestion-cursos",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#3355f5"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ryuichi.gestioncursos"
@@ -29,8 +31,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "29d8c586-d658-4f6d-88de-36fd519e7ea6"
+        "projectId": "8ce16f7e-158f-4978-b52f-051b588cd92e"
       }
-    }
+    },
+    "owner": "ryu1ulima"
   }
 }
