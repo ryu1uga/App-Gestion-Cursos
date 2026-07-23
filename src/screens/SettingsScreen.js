@@ -1,13 +1,21 @@
 import React from 'react'
-import { ScrollView, View, Text, TextInput, Pressable, Switch, Alert, StyleSheet } from 'react-native'
+import { ScrollView, View, Text, Pressable, Switch, Alert, StyleSheet } from 'react-native'
 import { useStore, exportJSON, importJSON } from '../lib/store.js'
-import { Card } from '../components/ui.js'
+import { ensurePermission } from '../lib/notify.js'
+import { Card, NumField } from '../components/ui.js'
 import { colors } from '../theme.js'
 
 export default function SettingsScreen() {
   const { state, dispatch } = useStore()
   const s = state.settings
   const setScale = (patch) => dispatch({ type: 'UPDATE_SETTINGS', patch: { defaultScale: { ...s.defaultScale, ...patch } } })
+
+  const toggleNotifications = async (v) => {
+    if (!v) { dispatch({ type: 'UPDATE_SETTINGS', patch: { notificationsOn: false } }); return }
+    const ok = await ensurePermission()
+    if (ok) dispatch({ type: 'UPDATE_SETTINGS', patch: { notificationsOn: true } })
+    else Alert.alert('Permiso denegado', 'Activa las notificaciones de la app en los ajustes de tu teléfono para recibir avisos.')
+  }
 
   const doExport = async () => {
     try { await exportJSON(state) } catch (e) { Alert.alert('Error al exportar', String(e.message || e)) }
@@ -52,6 +60,25 @@ export default function SettingsScreen() {
         </View>
       </Card>
 
+      <Card style={{ marginBottom: 12 }}>
+        <Text style={styles.h2}>Notificaciones</Text>
+        <Text style={styles.p}>Avisos locales antes de cada evaluación. Requiere que el curso tenga fecha de inicio y que la evaluación tenga semana asignada.</Text>
+        <View style={styles.toggleRow}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={styles.toggleTitle}>Activar avisos</Text>
+            <Text style={styles.p}>Te recordamos las evaluaciones próximas.</Text>
+          </View>
+          <Switch value={s.notificationsOn === true} trackColor={{ true: colors.brand }}
+            onValueChange={toggleNotifications} />
+        </View>
+        {s.notificationsOn === true && (
+          <View style={[styles.grid, { marginTop: 12 }]}>
+            <Field label="Avisar días antes" value={s.notifyDaysBefore ?? 2}
+              onChange={(v) => dispatch({ type: 'UPDATE_SETTINGS', patch: { notifyDaysBefore: Math.max(0, Math.trunc(v)) } })} />
+          </View>
+        )}
+      </Card>
+
       <Card style={{ marginBottom: 24 }}>
         <Text style={styles.h2}>Copia de seguridad</Text>
         <Text style={styles.p}>Tus datos viven solo en este dispositivo. Expórtalos para respaldar o pasarlos a otro equipo.</Text>
@@ -78,8 +105,7 @@ function Field({ label, value, onChange }) {
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput style={styles.fieldInput} keyboardType="numeric" value={String(value)}
-        onChangeText={(t) => onChange(t === '' ? 0 : Number(t))} />
+      <NumField style={styles.fieldInput} value={value} onChangeNumber={(v) => onChange(v)} />
     </View>
   )
 }

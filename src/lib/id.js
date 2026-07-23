@@ -9,6 +9,8 @@ export function emptyState() {
       defaultScale: { min: 0, max: 20, passing: 11, step: 1 },
       semesterWeeks: 16,
       roundFinal: true,
+      notifyDaysBefore: 2,     // avisar X días antes de una evaluación
+      notificationsOn: false,  // se activa cuando el usuario da permiso
       onboarded: false,
     },
   }

@@ -1,5 +1,7 @@
+import 'react-native-gesture-handler'
 import React, { useState } from 'react'
 import { SafeAreaView, View, Text, Pressable, ActivityIndicator, StyleSheet, Platform, StatusBar as RNStatusBar } from 'react-native'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { StatusBar } from 'expo-status-bar'
 import { StoreProvider, useStore } from './src/lib/store.js'
 import CoursesScreen from './src/screens/CoursesScreen.js'
@@ -67,12 +69,14 @@ function Shell() {
 
 export default function App() {
   return (
-    <StoreProvider>
-      <SafeAreaView style={styles.safe}>
-        <StatusBar style="dark" />
-        <Shell />
-      </SafeAreaView>
-    </StoreProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StoreProvider>
+        <SafeAreaView style={styles.safe}>
+          <StatusBar style="dark" />
+          <Shell />
+        </SafeAreaView>
+      </StoreProvider>
+    </GestureHandlerRootView>
   )
 }
 

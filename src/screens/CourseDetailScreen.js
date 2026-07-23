@@ -1,17 +1,29 @@
 import React, { useState } from 'react'
-import { ScrollView, View, Text, TextInput, Pressable, Switch, Alert, StyleSheet } from 'react-native'
+import { View, Text, TextInput, Pressable, Switch, Alert, StyleSheet } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
+import {
+  NestableScrollContainer,
+  NestableDraggableFlatList,
+  ScaleDecorator,
+} from 'react-native-draggable-flatlist'
 import { useStore } from '../lib/store.js'
-import { analyzeCourse, effectiveScale, neededOnNext, fmtGrade, STATUS_META, decimalsFromStep } from '../lib/calc.js'
-import { Card, Badge, Progress, PickerModal } from '../components/ui.js'
+import { analyzeCourse, effectiveScale, effectiveRound, neededOnNext, fmtGrade, STATUS_META, decimalsFromStep } from '../lib/calc.js'
+import { evalDate } from '../lib/notify.js'
+import { Card, Badge, Progress, PickerModal, NumField } from '../components/ui.js'
 import { colors, palette, statusColor } from '../theme.js'
 
 const TYPES = ['Examen', 'Proyecto', 'Práctica', 'Tarea', 'Exposición', 'Control', 'Evaluación', 'Otro']
+
+const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString() : null)
+// Recorta ceros/decimales innecesarios para mostrar el peso
+const trimNum = (n) => String(Number(Number(n).toFixed(2)))
 
 export default function CourseDetailScreen({ course, onBack }) {
   const { state, dispatch } = useStore()
   const [picker, setPicker] = useState(null) // evalId con selector de tipo abierto
   const scale = effectiveScale(course, state.settings)
-  const a = analyzeCourse(course.evaluations, scale, { round: state.settings.roundFinal !== false })
+  const round = effectiveRound(course, state.settings)
+  const a = analyzeCourse(course.evaluations, scale, { round })
   const meta = STATUS_META[a.status]
   const step = scale.step || 1
   const dec = decimalsFromStep(step)
@@ -21,7 +33,12 @@ export default function CourseDetailScreen({ course, onBack }) {
 
   const nextEval = [...a.pending].sort((x, y) => (x.week ?? 99) - (y.week ?? 99))[0]
   const nextReq = nextEval ? neededOnNext(a, nextEval, scale) : null
+  const nextDate = nextEval && course.startDate ? evalDate(course.startDate, nextEval.week) : null
   const pctSum = a.totalWeightPct
+
+  const roundOn = course.useOwnScale && course.roundFinal != null
+    ? course.roundFinal !== false
+    : state.settings.roundFinal !== false
 
   const confirmDelete = () =>
     Alert.alert('Eliminar curso', `¿Eliminar "${course.name}"?`, [
@@ -29,8 +46,37 @@ export default function CourseDetailScreen({ course, onBack }) {
       { text: 'Eliminar', style: 'destructive', onPress: () => { onBack(); dispatch({ type: 'DELETE_COURSE', id: course.id }) } },
     ])
 
+  const renderEval = ({ item: e, drag, isActive }) => {
+    const wPct = a.asPercent ? e.weight : (e.weight || 0) * 100
+    const gradeBg = e.grade == null ? colors.slate100 : e.grade >= scale.passing ? statusColor.emerald.bg : statusColor.red.bg
+    const gradeFg = e.grade == null ? colors.textFaint : e.grade >= scale.passing ? statusColor.emerald.fg : statusColor.red.fg
+    return (
+      <ScaleDecorator>
+        <View style={[styles.evalRow, isActive && styles.evalRowActive]}>
+          <Pressable onLongPress={drag} delayLongPress={120} style={styles.dragHandle} hitSlop={8}>
+            <Text style={styles.dragHandleText}>≡</Text>
+          </Pressable>
+          <View style={{ flex: 1, paddingRight: 6 }}>
+            <TextInput value={e.name} onChangeText={(t) => patchEval(e.id, { name: t })} style={styles.evalName} />
+            <Pressable onPress={() => setPicker(e.id)}><Text style={styles.evalType}>{e.type} ▾</Text></Pressable>
+          </View>
+          <NumField style={[styles.cell, styles.wSem]} integer allowEmpty placeholder="—"
+            value={e.week} onChangeNumber={(v) => patchEval(e.id, { week: v })} />
+          <NumField style={[styles.cell, styles.wPeso]} value={wPct} format={trimNum}
+            onChangeNumber={(v) => patchEval(e.id, { weight: a.asPercent ? v : v / 100 })} />
+          <NumField style={[styles.cell, styles.wNota, { backgroundColor: gradeBg, color: gradeFg, fontWeight: '700' }]}
+            value={e.grade} allowEmpty placeholder="pend."
+            onChangeNumber={(v) => patchEval(e.id, { grade: v })} />
+          <Pressable style={styles.delEval} onPress={() => dispatch({ type: 'DELETE_EVAL', courseId: course.id, evalId: e.id })}>
+            <Text style={{ color: colors.red }}>✕</Text>
+          </Pressable>
+        </View>
+      </ScaleDecorator>
+    )
+  }
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <NestableScrollContainer contentContainerStyle={styles.container}>
       <Pressable onPress={onBack}><Text style={styles.back}>← Volver</Text></Pressable>
 
       {/* Encabezado */}
@@ -45,6 +91,18 @@ export default function CourseDetailScreen({ course, onBack }) {
               style={[styles.swatch, { backgroundColor: col }, course.color === col && styles.swatchActive]} />
           ))}
         </View>
+        {/* Fechas del curso */}
+        <View style={styles.datesRow}>
+          <DateField label="Inicio" value={course.startDate}
+            onChange={(iso) => patchCourse({ startDate: iso })} />
+          <DateField label="Fin" value={course.endDate} minimumDate={course.startDate ? new Date(course.startDate) : undefined}
+            onChange={(iso) => patchCourse({ endDate: iso })} />
+        </View>
+        {course.startDate ? (
+          <Text style={styles.datesHint}>Las fechas de cada evaluación se calculan desde el inicio + su semana.</Text>
+        ) : (
+          <Text style={styles.datesHint}>Pon la fecha de inicio para calcular fechas y activar avisos por evaluación.</Text>
+        )}
       </Card>
 
       {/* Panel: nota actual */}
@@ -93,7 +151,9 @@ export default function CourseDetailScreen({ course, onBack }) {
       {/* Próxima evaluación */}
       {nextEval && nextReq && a.status !== 'seguro' && a.status !== 'imposible' && (
         <Card style={{ marginBottom: 12, borderLeftWidth: 4, borderLeftColor: colors.amber }}>
-          <Text style={styles.kicker}>PRÓXIMA{nextEval.week ? ` · SEMANA ${nextEval.week}` : ''}</Text>
+          <Text style={styles.kicker}>
+            PRÓXIMA{nextEval.week ? ` · SEMANA ${nextEval.week}` : ''}{nextDate ? ` · ${fmtDate(nextDate.toISOString())}` : ''}
+          </Text>
           <Text style={styles.nextName}>{nextEval.name} <Text style={{ color: colors.textFaint }}>({Math.round(nextReq.weight * 100)}%)</Text></Text>
           {nextReq.triviallyOk ? (
             <Text style={[styles.panelMsg, { color: colors.emerald }]}>Con cualquier nota sigues en carrera (si sacas el máximo en las demás).</Text>
@@ -114,6 +174,7 @@ export default function CourseDetailScreen({ course, onBack }) {
 
         {/* cabecera columnas */}
         <View style={styles.evalColsHead}>
+          <View style={{ width: 22 }} />
           <Text style={[styles.colH, { flex: 1 }]}>Nombre / Tipo</Text>
           <Text style={[styles.colH, styles.wSem]}>Sem</Text>
           <Text style={[styles.colH, styles.wPeso]}>Peso%</Text>
@@ -121,29 +182,17 @@ export default function CourseDetailScreen({ course, onBack }) {
           <View style={{ width: 26 }} />
         </View>
 
-        {course.evaluations.map((e) => {
-          const wPct = a.asPercent ? e.weight : (e.weight || 0) * 100
-          const gradeBg = e.grade == null ? colors.slate100 : e.grade >= scale.passing ? statusColor.emerald.bg : statusColor.red.bg
-          const gradeFg = e.grade == null ? colors.textFaint : e.grade >= scale.passing ? statusColor.emerald.fg : statusColor.red.fg
-          return (
-            <View key={e.id} style={styles.evalRow}>
-              <View style={{ flex: 1, paddingRight: 6 }}>
-                <TextInput value={e.name} onChangeText={(t) => patchEval(e.id, { name: t })} style={styles.evalName} />
-                <Pressable onPress={() => setPicker(e.id)}><Text style={styles.evalType}>{e.type} ▾</Text></Pressable>
-              </View>
-              <TextInput style={[styles.cell, styles.wSem]} keyboardType="number-pad" value={e.week == null ? '' : String(e.week)} placeholder="—"
-                onChangeText={(t) => patchEval(e.id, { week: t === '' ? null : Number(t) })} />
-              <TextInput style={[styles.cell, styles.wPeso]} keyboardType="numeric" value={String(Number(wPct.toFixed(2)))}
-                onChangeText={(t) => { const v = t === '' ? 0 : Number(t); patchEval(e.id, { weight: a.asPercent ? v : v / 100 }) }} />
-              <TextInput style={[styles.cell, styles.wNota, { backgroundColor: gradeBg, color: gradeFg, fontWeight: '700' }]}
-                keyboardType="numeric" value={e.grade == null ? '' : String(e.grade)} placeholder="pend."
-                onChangeText={(t) => patchEval(e.id, { grade: t === '' ? null : Number(t) })} />
-              <Pressable style={styles.delEval} onPress={() => dispatch({ type: 'DELETE_EVAL', courseId: course.id, evalId: e.id })}>
-                <Text style={{ color: colors.red }}>✕</Text>
-              </Pressable>
-            </View>
-          )
-        })}
+        {course.evaluations.length > 1 && (
+          <Text style={styles.reorderHint}>Mantén presionado ≡ y arrastra para reordenar.</Text>
+        )}
+
+        <NestableDraggableFlatList
+          data={course.evaluations}
+          keyExtractor={(e) => e.id}
+          renderItem={renderEval}
+          onDragEnd={({ data }) => dispatch({ type: 'REORDER_EVALS', courseId: course.id, evaluations: data })}
+          activationDistance={12}
+        />
 
         <Pressable style={styles.addEval} onPress={() => dispatch({ type: 'ADD_EVAL', courseId: course.id })}>
           <Text style={styles.addEvalText}>+ Agregar evaluación</Text>
@@ -161,21 +210,62 @@ export default function CourseDetailScreen({ course, onBack }) {
           </View>
         </View>
         {course.useOwnScale ? (
-          <View style={styles.scaleGrid}>
-            <ScaleField label="Mínima" value={course.scale.min} onChange={(v) => patchCourse({ scale: { ...course.scale, min: v } })} />
-            <ScaleField label="Máxima" value={course.scale.max} onChange={(v) => patchCourse({ scale: { ...course.scale, max: v } })} />
-            <ScaleField label="Aprobar" value={course.scale.passing} onChange={(v) => patchCourse({ scale: { ...course.scale, passing: v } })} />
-            <ScaleField label="Paso" value={course.scale.step} onChange={(v) => patchCourse({ scale: { ...course.scale, step: v } })} />
-          </View>
+          <>
+            <View style={styles.scaleGrid}>
+              <ScaleField label="Mínima" value={course.scale.min} onChange={(v) => patchCourse({ scale: { ...course.scale, min: v } })} />
+              <ScaleField label="Máxima" value={course.scale.max} onChange={(v) => patchCourse({ scale: { ...course.scale, max: v } })} />
+              <ScaleField label="Aprobar" value={course.scale.passing} onChange={(v) => patchCourse({ scale: { ...course.scale, passing: v } })} />
+              <ScaleField label="Paso" value={course.scale.step} onChange={(v) => patchCourse({ scale: { ...course.scale, step: v } })} />
+            </View>
+            <View style={styles.roundRow}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={styles.toggleTitle}>Redondear nota final</Text>
+                <Text style={styles.hintSmall}>Al paso de la escala (ej. 10.65 → 11). Solo para este curso; anula el ajuste global.</Text>
+              </View>
+              <Switch value={roundOn} trackColor={{ true: colors.brand }}
+                onValueChange={(v) => patchCourse({ roundFinal: v })} />
+            </View>
+          </>
         ) : (
-          <Text style={styles.hintSmall}>Usando la escala global: 0–{scale.max}, aprueba con {scale.passing}. Actívala aquí para una escala propia (ej. 0–7).</Text>
+          <Text style={styles.hintSmall}>Usando la escala global: 0–{scale.max}, aprueba con {scale.passing}. Actívala aquí para una escala propia (ej. 0–7) y su propio redondeo.</Text>
         )}
       </Card>
 
       <PickerModal visible={picker != null} title="Tipo de evaluación" options={TYPES}
         value={course.evaluations.find((e) => e.id === picker)?.type}
         onSelect={(t) => patchEval(picker, { type: t })} onClose={() => setPicker(null)} />
-    </ScrollView>
+    </NestableScrollContainer>
+  )
+}
+
+function DateField({ label, value, onChange, minimumDate }) {
+  const [show, setShow] = useState(false)
+  const d = value ? new Date(value) : null
+  return (
+    <View style={styles.dateField}>
+      <Text style={styles.scaleLabel}>{label}</Text>
+      <View style={styles.dateBtnRow}>
+        <Pressable style={styles.dateBtn} onPress={() => setShow(true)}>
+          <Text style={[styles.dateBtnText, !d && { color: colors.textFaint }]}>{d ? d.toLocaleDateString() : 'Elegir'}</Text>
+        </Pressable>
+        {d && (
+          <Pressable style={styles.dateClearBtn} onPress={() => onChange(null)}>
+            <Text style={styles.dateClear}>✕</Text>
+          </Pressable>
+        )}
+      </View>
+      {show && (
+        <DateTimePicker
+          value={d || new Date()}
+          mode="date"
+          minimumDate={minimumDate}
+          onChange={(event, selected) => {
+            setShow(false)
+            if (event.type === 'set' && selected) onChange(selected.toISOString())
+          }}
+        />
+      )}
+    </View>
   )
 }
 
@@ -183,8 +273,7 @@ function ScaleField({ label, value, onChange }) {
   return (
     <View style={styles.scaleField}>
       <Text style={styles.scaleLabel}>{label}</Text>
-      <TextInput style={styles.scaleInput} keyboardType="numeric" value={String(value)}
-        onChangeText={(t) => onChange(t === '' ? 0 : Number(t))} />
+      <NumField style={styles.scaleInput} value={value} onChangeNumber={(v) => onChange(v)} />
     </View>
   )
 }
@@ -199,6 +288,14 @@ const styles = StyleSheet.create({
   paletteRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   swatch: { width: 26, height: 26, borderRadius: 13 },
   swatchActive: { borderWidth: 3, borderColor: '#0f172a' },
+  datesRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  datesHint: { fontSize: 12, color: colors.textSoft, marginTop: 8 },
+  dateField: { flex: 1 },
+  dateBtnRow: { flexDirection: 'row', alignItems: 'center' },
+  dateBtn: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 10 },
+  dateBtnText: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  dateClearBtn: { paddingHorizontal: 8, paddingVertical: 6 },
+  dateClear: { color: colors.textFaint, fontSize: 14 },
   kicker: { fontSize: 11, fontWeight: '700', color: colors.textFaint, letterSpacing: 0.5 },
   bigGrade: { fontSize: 34, fontWeight: '800', marginVertical: 6 },
   bigGradeMax: { fontSize: 15, fontWeight: '400', color: colors.textFaint },
@@ -214,19 +311,25 @@ const styles = StyleSheet.create({
   evalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
   pesos: { fontSize: 12, color: colors.textFaint },
+  reorderHint: { fontSize: 11, color: colors.textFaint, marginBottom: 4 },
   evalColsHead: { flexDirection: 'row', alignItems: 'center', paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: colors.slate100 },
   colH: { fontSize: 10, color: colors.textFaint, fontWeight: '600', textTransform: 'uppercase' },
   wSem: { width: 42, textAlign: 'center' },
   wPeso: { width: 52, textAlign: 'center' },
   wNota: { width: 56, textAlign: 'center' },
-  evalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.slate50 },
+  evalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.slate50, backgroundColor: colors.card },
+  evalRowActive: { backgroundColor: colors.slate50, borderRadius: 10 },
+  dragHandle: { width: 22, alignItems: 'center', justifyContent: 'center' },
+  dragHandleText: { color: colors.textFaint, fontSize: 18, fontWeight: '700' },
   evalName: { fontSize: 14, color: colors.text, padding: 2, fontWeight: '600' },
   evalType: { fontSize: 12, color: colors.textSoft, paddingHorizontal: 2, marginTop: 2 },
-  cell: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingVertical: 6, marginHorizontal: 2, color: colors.text, fontSize: 13 },
+  cell: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingVertical: 6, marginHorizontal: 2, color: colors.text, fontSize: 13, textAlign: 'center' },
   delEval: { width: 26, alignItems: 'center' },
   addEval: { marginTop: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   addEvalText: { color: colors.brand, fontWeight: '600' },
   switchLabel: { fontSize: 13, color: colors.textSoft, marginRight: 6 },
+  roundRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, backgroundColor: colors.slate50, borderRadius: 12, padding: 12 },
+  toggleTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
   scaleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   scaleField: { flexGrow: 1, minWidth: 70 },
   scaleLabel: { fontSize: 11, color: colors.textSoft, marginBottom: 4 },

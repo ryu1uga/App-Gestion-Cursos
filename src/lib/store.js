@@ -7,6 +7,7 @@ import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 import * as DocumentPicker from 'expo-document-picker'
 import { newId, emptyState } from './id.js'
+import { rescheduleAll } from './notify.js'
 
 const KEY = 'gestion-cursos:v1'
 
@@ -27,7 +28,8 @@ function reducer(state, action) {
           ...state.courses,
           {
             id: newId(), name: action.name || 'Nuevo curso', color: action.color || '#3355f5',
-            useOwnScale: false, scale: { ...state.settings.defaultScale }, evaluations: [],
+            useOwnScale: false, scale: { ...state.settings.defaultScale },
+            startDate: null, endDate: null, roundFinal: null, evaluations: [],
           },
         ],
       }
@@ -74,6 +76,14 @@ function reducer(state, action) {
         ),
       }
 
+    case 'REORDER_EVALS':
+      return {
+        ...state,
+        courses: state.courses.map((c) =>
+          c.id === action.courseId ? { ...c, evaluations: action.evaluations } : c,
+        ),
+      }
+
     case 'UPDATE_SETTINGS':
       return { ...state, settings: { ...state.settings, ...action.patch } }
 
@@ -107,6 +117,8 @@ export function StoreProvider({ children }) {
     if (first.current) { first.current = false }
     const { loaded, ...persist } = state
     AsyncStorage.setItem(KEY, JSON.stringify(persist)).catch(() => {})
+    // Reprograma las notificaciones locales ante cualquier cambio relevante
+    rescheduleAll(persist)
   }, [state])
 
   return <StoreCtx.Provider value={{ state, dispatch }}>{children}</StoreCtx.Provider>

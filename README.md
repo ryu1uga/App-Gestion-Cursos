@@ -13,9 +13,13 @@ Hecha con **React Native + Expo**. Corre en tu celular con **Expo Go**. Los dato
 ## Cómo correrla
 
 ```bash
-npm install         # instala dependencias (primera vez)
-npx expo start      # inicia el servidor y muestra un QR
+npm install         # instala dependencias (¡corre esto tras actualizar!)
+npx expo start -c   # inicia el servidor (-c limpia caché de Babel) y muestra un QR
 ```
+
+> Esta versión agregó dependencias nativas (fechas, notificaciones y reordenar
+> arrastrando). Debes correr `npm install` de nuevo y reiniciar Expo con `-c`.
+> Todas funcionan dentro de Expo Go, no necesitas compilar un APK.
 
 Luego:
 - **Android:** abre **Expo Go** → *Scan QR code* → escanea el QR de la terminal.
@@ -51,7 +55,13 @@ EAS compila en la nube y te da un `.apk` para descargar. (Requiere cuenta gratui
 
 **Escala configurable** (global y por curso). Por defecto 0–20 aprobando con 11; los cursos en otra escala (ej. 0–7 aprobando con 4) activan "escala propia".
 
-**Redondeo de nota final** (Ajustes). Si tu universidad redondea la nota final (10.65 → 11), déjalo activado; desactívalo para el promedio exacto.
+**Redondeo de nota final** (Ajustes global, y también por curso). Si tu universidad redondea la nota final (10.65 → 11), déjalo activado; desactívalo para el promedio exacto. Cada curso con escala propia puede tener su propio switch de redondeo, que anula el global.
+
+**Fechas del curso.** Cada curso puede tener fecha de inicio y fin. La fecha de cada evaluación se calcula desde el inicio + su número de semana.
+
+**Notificaciones.** Activándolas en Ajustes, la app te avisa X días antes (configurable, por defecto 2) de cada evaluación pendiente que tenga semana asignada en un curso con fecha de inicio.
+
+**Reordenar evaluaciones.** Mantén presionado el asa (≡) de una fila y arrástrala para cambiar el orden.
 
 **Respaldo.** Exporta/importa todos tus datos como JSON desde Ajustes.
 

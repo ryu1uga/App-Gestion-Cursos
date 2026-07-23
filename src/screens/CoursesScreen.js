@@ -1,7 +1,7 @@
 import React from 'react'
 import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native'
 import { useStore } from '../lib/store.js'
-import { analyzeCourse, effectiveScale, fmtGrade, STATUS_META } from '../lib/calc.js'
+import { analyzeCourse, effectiveScale, effectiveRound, fmtGrade, STATUS_META } from '../lib/calc.js'
 import { Card, Badge, Progress } from '../components/ui.js'
 import { colors } from '../theme.js'
 
@@ -23,7 +23,7 @@ export default function CoursesScreen({ onOpen }) {
 
       {state.courses.map((c) => {
         const scale = effectiveScale(c, state.settings)
-        const a = analyzeCourse(c.evaluations, scale, { round: state.settings.roundFinal !== false })
+        const a = analyzeCourse(c.evaluations, scale, { round: effectiveRound(c, state.settings) })
         const meta = STATUS_META[a.status]
         const shown = a.projectedIfStopNow != null ? a.projectedIfStopNow : a.currentAvg
         return (

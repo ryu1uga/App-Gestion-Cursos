@@ -38,6 +38,16 @@ export function effectiveScale(course, settings) {
   return base
 }
 
+// Devuelve si se debe redondear la nota final para este curso.
+// Si el curso usa escala propia y definió su propio roundFinal, gana ese;
+// si no, se usa el ajuste global (roundFinal !== false por defecto true).
+export function effectiveRound(course, settings) {
+  if (course?.useOwnScale && course?.roundFinal != null) {
+    return course.roundFinal !== false
+  }
+  return settings?.roundFinal !== false
+}
+
 // ------------------------------------------------------------
 //  Núcleo del cálculo para un curso
 // ------------------------------------------------------------
