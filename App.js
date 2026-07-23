@@ -41,7 +41,7 @@ function Shell() {
   return (
     <View style={styles.flex}>
       <View style={styles.header}>
-        <Text style={styles.title}>Gestión de Cursos</Text>
+        <Text style={styles.title}>NotaFlow</Text>
         <Text style={styles.subtitle}>Tus notas, bajo control</Text>
       </View>
 

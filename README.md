@@ -1,4 +1,4 @@
-# Gestión de Cursos · Control de Notas (React Native + Expo)
+# NotaFlow · Control de Notas (React Native + Expo)
 
 App móvil para gestionar tus cursos, su cronograma de evaluaciones por semana y llevar el control de notas ponderadas — calculando cuánto necesitas para aprobar.
 

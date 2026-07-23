@@ -127,7 +127,7 @@ export function StoreProvider({ children }) {
 // ---- Export / Import ----
 export async function exportJSON(state) {
   const { loaded, ...data } = state
-  const fileUri = FileSystem.documentDirectory + `gestion-cursos-${new Date().toISOString().slice(0, 10)}.json`
+  const fileUri = FileSystem.documentDirectory + `notaflow-${new Date().toISOString().slice(0, 10)}.json`
   await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(data, null, 2))
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Exportar datos' })

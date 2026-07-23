@@ -168,9 +168,9 @@ export function neededOnNext(analysis, nextEval, scale) {
 }
 
 export const STATUS_META = {
-  aprobado:    { label: 'Aprobado',            color: 'emerald', hint: 'Cerrado y aprobado.' },
-  desaprobado: { label: 'Desaprobado',         color: 'red',     hint: 'Cerrado sin llegar a la mínima.' },
-  seguro:      { label: 'Aprobado asegurado',  color: 'emerald', hint: 'Apruebas pase lo que pase.' },
-  en_juego:    { label: 'En juego',            color: 'amber',   hint: 'Depende de lo que saques.' },
-  imposible:   { label: 'Ya no alcanza',       color: 'red',     hint: 'Ni con el máximo llegas.' },
+  aprobado:    { label: 'Aprobado',        color: 'emerald', hint: 'Curso cerrado, aprobaste.' },
+  desaprobado: { label: 'Desaprobado',     color: 'red',     hint: 'Curso cerrado sin la mínima.' },
+  seguro:      { label: 'Aprobado asegurado', color: 'emerald', hint: 'Ya alcanzaste la nota mínima para aprobar.' },
+  en_juego:    { label: 'Aún es posible',     color: 'amber',   hint: 'Depende de tus próximas notas.' },
+  imposible:   { label: 'Ya no es posible',   color: 'red',     hint: 'Aunque obtengas la nota máxima restante, no alcanzarás a aprobar.' },
 }

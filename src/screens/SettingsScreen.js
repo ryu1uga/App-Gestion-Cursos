@@ -130,7 +130,7 @@ export default function SettingsScreen() {
         </Pressable>
       </Card>
 
-      <Text style={styles.footer}>Gestión de Cursos · todo vive en tu teléfono</Text>
+      <Text style={styles.footer}>NotaFlow · todo vive en tu teléfono</Text>
     </ScrollView>
   )
 }
