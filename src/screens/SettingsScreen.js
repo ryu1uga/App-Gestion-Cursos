@@ -1,13 +1,17 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { ScrollView, View, Text, Pressable, Switch, Alert, StyleSheet } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import { useStore, exportJSON, importJSON } from '../lib/store.js'
 import { ensurePermission } from '../lib/notify.js'
 import { Card, NumField, Icon } from '../components/ui.js'
 import { colors } from '../theme.js'
 
+const two = (n) => String(n).padStart(2, '0')
+
 export default function SettingsScreen() {
   const { state, dispatch } = useStore()
   const s = state.settings
+  const [showTime, setShowTime] = useState(false)
   const setScale = (patch) => dispatch({ type: 'UPDATE_SETTINGS', patch: { defaultScale: { ...s.defaultScale, ...patch } } })
 
   const toggleNotifications = async (v) => {
@@ -72,10 +76,33 @@ export default function SettingsScreen() {
             onValueChange={toggleNotifications} />
         </View>
         {s.notificationsOn === true && (
-          <View style={[styles.grid, { marginTop: 12 }]}>
-            <Field label="Avisar días antes" value={s.notifyDaysBefore ?? 2}
-              onChange={(v) => dispatch({ type: 'UPDATE_SETTINGS', patch: { notifyDaysBefore: Math.max(0, Math.trunc(v)) } })} />
-          </View>
+          <>
+            <View style={[styles.grid, { marginTop: 12 }]}>
+              <Field label="Avisar días antes" value={s.notifyDaysBefore ?? 2}
+                onChange={(v) => dispatch({ type: 'UPDATE_SETTINGS', patch: { notifyDaysBefore: Math.max(0, Math.trunc(v)) } })} />
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Hora del aviso</Text>
+                <Pressable style={styles.timeBtn} onPress={() => setShowTime(true)}>
+                  <Icon name="clock" size={15} color={colors.textSoft} />
+                  <Text style={styles.timeBtnText}>{two(s.notifyHour ?? 9)}:{two(s.notifyMinute ?? 0)}</Text>
+                </Pressable>
+              </View>
+            </View>
+            <Text style={styles.p}>Llega a lo más tarde el domingo previo a la semana de la evaluación. Los "días antes" solo pueden adelantarlo.</Text>
+            {showTime && (
+              <DateTimePicker
+                mode="time"
+                is24Hour
+                value={(() => { const d = new Date(); d.setHours(s.notifyHour ?? 9, s.notifyMinute ?? 0, 0, 0); return d })()}
+                onChange={(event, sel) => {
+                  setShowTime(false)
+                  if (event.type === 'set' && sel) {
+                    dispatch({ type: 'UPDATE_SETTINGS', patch: { notifyHour: sel.getHours(), notifyMinute: sel.getMinutes() } })
+                  }
+                }}
+              />
+            )}
+          </>
         )}
       </Card>
 
@@ -125,6 +152,8 @@ const styles = StyleSheet.create({
   field: { flexGrow: 1, minWidth: '45%' },
   fieldLabel: { fontSize: 12, color: colors.textSoft, marginBottom: 4 },
   fieldInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 9, textAlign: 'center', color: colors.text },
+  timeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 9 },
+  timeBtnText: { color: colors.text, fontWeight: '700', fontSize: 15 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, backgroundColor: colors.slate50, borderRadius: 12, padding: 12 },
   toggleTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 6 },

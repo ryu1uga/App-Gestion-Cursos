@@ -4,9 +4,14 @@
 // ============================================================
 
 // Redondea a un paso dado (ej. step=1 -> enteros, step=0.1 -> 1 decimal)
+// Redondeo "mitad hacia arriba" a la grilla de la escala. El epsilon corrige
+// el error de coma flotante (ej. 5.45 / 0.1 = 54.4999… que sin corregir baja
+// a 5.4 en vez de subir a 5.5).
 export function roundToStep(value, step) {
   if (!step || step <= 0) return value
-  return Math.round(value / step) * step
+  const rounded = Math.round(value / step + 1e-9)
+  const decimals = decimalsFromStep(step)
+  return Number((rounded * step).toFixed(decimals))
 }
 
 // Formatea una nota respetando decimales configurados.

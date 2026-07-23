@@ -8,13 +8,15 @@ import {
 } from 'react-native-draggable-flatlist'
 import { useStore } from '../lib/store.js'
 import { analyzeCourse, effectiveScale, effectiveRound, neededOnNext, fmtGrade, STATUS_META, decimalsFromStep } from '../lib/calc.js'
-import { evalDate } from '../lib/notify.js'
+import { evalDate, notifyFireAt } from '../lib/notify.js'
 import { Card, Badge, Progress, PickerModal, NumField, Icon } from '../components/ui.js'
 import { colors, palette, statusColor } from '../theme.js'
 
 const TYPES = ['Examen', 'Proyecto', 'Práctica', 'Tarea', 'Exposición', 'Control', 'Evaluación', 'Otro']
 
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString() : null)
+const two = (n) => String(n).padStart(2, '0')
+const fmtDateTime = (d) => `${d.toLocaleDateString()} a las ${two(d.getHours())}:${two(d.getMinutes())}`
 // Recorta ceros/decimales innecesarios para mostrar el peso
 const trimNum = (n) => String(Number(Number(n).toFixed(2)))
 
@@ -34,6 +36,9 @@ export default function CourseDetailScreen({ course, onBack }) {
   const nextEval = [...a.pending].sort((x, y) => (x.week ?? 99) - (y.week ?? 99))[0]
   const nextReq = nextEval ? neededOnNext(a, nextEval, scale) : null
   const nextDate = nextEval && course.startDate ? evalDate(course.startDate, nextEval.week) : null
+  const nextFire = state.settings.notificationsOn && nextDate
+    ? notifyFireAt(nextDate, Number(state.settings.notifyDaysBefore ?? 2), Number(state.settings.notifyHour ?? 9), Number(state.settings.notifyMinute ?? 0))
+    : null
   const pctSum = a.totalWeightPct
 
   const roundOn = course.useOwnScale && course.roundFinal != null
@@ -167,6 +172,16 @@ export default function CourseDetailScreen({ course, onBack }) {
             <Text style={styles.panelMsg}>Mínimo aquí, sacando el máximo en lo demás: <Text style={{ color: colors.amber, fontWeight: '800' }}>{nextReq.clamped.toFixed(dec)}</Text></Text>
           ) : (
             <Text style={[styles.panelMsg, { color: colors.red }]}>Ni con {scale.max} aquí basta; te la juegas en varias.</Text>
+          )}
+          {nextFire && (
+            <View style={styles.notifyRow}>
+              <Icon name="bell" size={13} color={colors.textFaint} />
+              <Text style={styles.notifyText}>
+                {nextFire.getTime() > Date.now()
+                  ? `Te aviso el ${fmtDateTime(nextFire)}`
+                  : `El aviso ya pasó (${fmtDateTime(nextFire)})`}
+              </Text>
+            </View>
           )}
         </Card>
       )}
@@ -316,6 +331,8 @@ const styles = StyleSheet.create({
   miniLabel: { fontSize: 11, color: colors.textFaint },
   miniVal: { fontSize: 14, fontWeight: '700', color: colors.text },
   nextName: { fontSize: 15, fontWeight: '700', color: colors.text, marginTop: 4 },
+  notifyRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.slate50 },
+  notifyText: { fontSize: 12, color: colors.textSoft, flexShrink: 1 },
   evalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
   pesos: { fontSize: 12, color: colors.textFaint },

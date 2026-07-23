@@ -10,6 +10,8 @@ export function emptyState() {
       semesterWeeks: 16,
       roundFinal: true,
       notifyDaysBefore: 2,     // avisar X días antes de una evaluación
+      notifyHour: 9,           // hora del aviso (0-23)
+      notifyMinute: 0,         // minuto del aviso
       notificationsOn: false,  // se activa cuando el usuario da permiso
       onboarded: false,
     },

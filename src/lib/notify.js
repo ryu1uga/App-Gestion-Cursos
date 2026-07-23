@@ -1,7 +1,9 @@
 // ============================================================
 //  Notificaciones locales de evaluaciones próximas
 //  Fecha de una evaluación = startDate del curso + (semana-1)*7 días.
-//  Se avisa `notifyDaysBefore` días antes, a las 9:00 a. m.
+//  El aviso cae como máximo el DOMINGO de la semana anterior a la
+//  evaluación; los "días antes" pueden adelantarlo más. La hora del
+//  aviso es configurable (notifyHour / notifyMinute).
 // ============================================================
 import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
@@ -16,6 +18,8 @@ Notifications.setNotificationHandler({
 })
 
 const DAY_MS = 24 * 60 * 60 * 1000
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
 // Calcula la fecha (Date) de una evaluación a partir del inicio del curso y su semana.
 export function evalDate(startDate, week) {
@@ -23,9 +27,34 @@ export function evalDate(startDate, week) {
   const base = new Date(startDate)
   if (Number.isNaN(base.getTime())) return null
   const d = new Date(base.getTime() + (Number(week) - 1) * 7 * DAY_MS)
-  d.setHours(9, 0, 0, 0) // hora de la evaluación (referencia)
+  d.setHours(0, 0, 0, 0)
   return d
 }
+
+// Domingo que cierra la semana ANTERIOR a la semana de la evaluación.
+// Ej.: eval miércoles 22/07 -> lunes de su semana = 20/07 -> domingo previo = 19/07.
+export function prevWeekSunday(evDay) {
+  const d = new Date(evDay)
+  d.setHours(0, 0, 0, 0)
+  const offset = ((d.getDay() + 6) % 7) + 1 // días hasta el domingo anterior al lunes de su semana
+  d.setDate(d.getDate() - offset)
+  return d
+}
+
+// Fecha+hora exacta en que debe sonar el aviso de una evaluación (o null).
+export function notifyFireAt(evDay, daysBefore, hour, minute) {
+  if (!evDay) return null
+  const byDaysBefore = new Date(evDay)
+  byDaysBefore.setDate(byDaysBefore.getDate() - Math.max(0, daysBefore))
+  const cap = prevWeekSunday(evDay)
+  // No puede ser más tarde que el domingo tope; los días antes solo lo adelantan.
+  const day = byDaysBefore.getTime() < cap.getTime() ? byDaysBefore : cap
+  const fire = new Date(day)
+  fire.setHours(hour, minute, 0, 0)
+  return fire
+}
+
+const humanDate = (d) => `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`
 
 // Pide permiso de notificaciones. Devuelve true si quedó concedido.
 export async function ensurePermission() {
@@ -51,25 +80,25 @@ export async function rescheduleAll(state) {
     await Notifications.cancelAllScheduledNotificationsAsync()
     if (!state?.settings?.notificationsOn) return
 
-    const daysBefore = Number(state.settings.notifyDaysBefore ?? 2)
+    const s = state.settings
+    const daysBefore = Number(s.notifyDaysBefore ?? 2)
+    const hour = Number(s.notifyHour ?? 9)
+    const minute = Number(s.notifyMinute ?? 0)
     const now = Date.now()
 
     for (const c of state.courses) {
       if (!c.startDate) continue
       for (const e of c.evaluations) {
         if (e.grade != null && e.grade !== '') continue // ya tiene nota
-        const when = evalDate(c.startDate, e.week)
-        if (!when) continue
-        const fireAt = new Date(when.getTime() - daysBefore * DAY_MS)
-        if (fireAt.getTime() <= now) continue // ya pasó
+        const evDay = evalDate(c.startDate, e.week)
+        if (!evDay) continue
+        const fireAt = notifyFireAt(evDay, daysBefore, hour, minute)
+        if (!fireAt || fireAt.getTime() <= now) continue // ya pasó
 
         await Notifications.scheduleNotificationAsync({
           content: {
             title: c.name,
-            body:
-              daysBefore <= 0
-                ? `Hoy toca: ${e.type} · ${e.name}`
-                : `Faltan ${daysBefore} día${daysBefore === 1 ? '' : 's'}: ${e.type} · ${e.name}`,
+            body: `${e.type} · ${e.name} — es el ${humanDate(evDay)}`,
             data: { courseId: c.id, evalId: e.id },
           },
           trigger: fireAt,
