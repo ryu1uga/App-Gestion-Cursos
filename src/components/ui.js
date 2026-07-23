@@ -1,6 +1,12 @@
 import React, { useState } from 'react'
 import { View, Text, Pressable, Modal, TextInput, StyleSheet } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { colors, statusColor } from '../theme.js'
+
+// Ícono base de la app (Feather, incluido en Expo)
+export function Icon({ name, size = 18, color = colors.text, style }) {
+  return <Feather name={name} size={size} color={color} style={style} />
+}
 
 export function Card({ children, style }) {
   return <View style={[styles.card, style]}>{children}</View>
@@ -92,7 +98,7 @@ export function PickerModal({ visible, options, value, onSelect, onClose, title 
           {options.map((opt) => (
             <Pressable key={opt} style={styles.modalRow} onPress={() => { onSelect(opt); onClose() }}>
               <Text style={[styles.modalRowText, opt === value && { color: colors.brand, fontWeight: '700' }]}>{opt}</Text>
-              {opt === value ? <Text style={{ color: colors.brand }}>✓</Text> : null}
+              {opt === value ? <Icon name="check" size={18} color={colors.brand} /> : null}
             </Pressable>
           ))}
         </View>

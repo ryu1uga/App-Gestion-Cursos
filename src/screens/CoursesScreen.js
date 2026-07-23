@@ -18,7 +18,7 @@ export default function CoursesScreen({ onOpen }) {
       </View>
 
       {state.courses.length === 0 && (
-        <Card><Text style={styles.empty}>Aún no tienes cursos. Crea uno con “+ Nuevo”.</Text></Card>
+        <Card><Text style={styles.empty}>Todavía no hay cursos. Crea el primero con “+ Nuevo”.</Text></Card>
       )}
 
       {state.courses.map((c) => {

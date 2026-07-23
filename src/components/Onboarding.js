@@ -1,37 +1,38 @@
 import React, { useRef, useState } from 'react'
 import { View, Text, Pressable, ScrollView, useWindowDimensions, StyleSheet } from 'react-native'
+import { Icon } from './ui.js'
 import { colors } from '../theme.js'
 
 const SLIDES = [
   {
-    icon: '🎓',
-    title: 'Bienvenido a Gestión de Cursos',
-    body: 'Lleva el control de tus cursos, sus evaluaciones y tus notas en un solo lugar. Todo se guarda en tu teléfono.',
+    icon: 'book-open',
+    title: 'Tus cursos, sin la hoja de Excel',
+    body: 'Cursos, evaluaciones y notas en un solo lugar. Nada de esto sale de tu teléfono.',
   },
   {
-    icon: '📚',
-    title: 'Crea tus cursos',
-    body: 'Agrega cada curso y sus evaluaciones (exámenes, proyectos, prácticas…). A cada una le pones su peso en % y la semana en que toca.',
+    icon: 'plus-circle',
+    title: 'Arma cada curso',
+    body: 'Agrega tus evaluaciones —examen, práctica, proyecto— con su peso y la semana en que caen.',
   },
   {
-    icon: '✍️',
-    title: 'Registra tus notas',
-    body: 'Conforme te devuelven las notas, las vas ingresando. La app calcula tu promedio ponderado automáticamente, igual que en una hoja de cálculo.',
+    icon: 'edit-3',
+    title: 'Anota conforme salen',
+    body: 'Metes cada nota cuando te la devuelven y el promedio ponderado se calcula solo.',
   },
   {
-    icon: '🎯',
-    title: '¿Cuánto necesito para aprobar?',
-    body: 'Te dice cuánto necesitas en promedio en lo que falta, la nota mínima en tu próxima evaluación, y si el curso ya está asegurado o en riesgo.',
+    icon: 'target',
+    title: '¿Me alcanza para aprobar?',
+    body: 'Te digo cuánto necesitas en lo que falta y qué sacar en la próxima para no quedarte.',
   },
   {
-    icon: '⚙️',
-    title: 'Ajusta tu escala',
-    body: 'En Ajustes defines tu escala (0–20, 0–7, etc.), la nota de aprobación y si se redondea la nota final. Cada curso puede tener su propia escala.',
+    icon: 'sliders',
+    title: 'Tu escala, tus reglas',
+    body: '0–20, 0–7, lo que use tu facultad. Defines la nota de aprobación y si se redondea.',
   },
   {
-    icon: '🗓️',
-    title: 'Cronograma y respaldo',
-    body: 'En Cronograma ves todas tus evaluaciones por semana. Y puedes exportar/importar tus datos como respaldo o para pasarlos a otro equipo.',
+    icon: 'calendar',
+    title: 'Todo a la vista',
+    body: 'El cronograma junta tus evaluaciones por semana. Y respaldas tus datos cuando quieras.',
   },
 ]
 
@@ -69,7 +70,7 @@ export default function Onboarding({ onDone }) {
       >
         {SLIDES.map((s, i) => (
           <View key={i} style={[styles.slide, { width }]}>
-            <View style={styles.iconCircle}><Text style={styles.icon}>{s.icon}</Text></View>
+            <View style={styles.iconCircle}><Icon name={s.icon} size={48} color={colors.brand} /></View>
             <Text style={styles.title}>{s.title}</Text>
             <Text style={styles.body}>{s.body}</Text>
           </View>

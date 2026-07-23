@@ -9,12 +9,13 @@ import CourseDetailScreen from './src/screens/CourseDetailScreen.js'
 import ScheduleScreen from './src/screens/ScheduleScreen.js'
 import SettingsScreen from './src/screens/SettingsScreen.js'
 import Onboarding from './src/components/Onboarding.js'
+import { Icon } from './src/components/ui.js'
 import { colors } from './src/theme.js'
 
 const TABS = [
-  { id: 'cursos', label: 'Cursos', icon: '📚' },
-  { id: 'cronograma', label: 'Cronograma', icon: '🗓️' },
-  { id: 'config', label: 'Ajustes', icon: '⚙️' },
+  { id: 'cursos', label: 'Cursos', icon: 'book-open' },
+  { id: 'cronograma', label: 'Cronograma', icon: 'calendar' },
+  { id: 'config', label: 'Ajustes', icon: 'sliders' },
 ]
 
 function Shell() {
@@ -41,7 +42,7 @@ function Shell() {
     <View style={styles.flex}>
       <View style={styles.header}>
         <Text style={styles.title}>Gestión de Cursos</Text>
-        <Text style={styles.subtitle}>Control de notas ponderadas</Text>
+        <Text style={styles.subtitle}>Tus notas, bajo control</Text>
       </View>
 
       <View style={styles.content}>
@@ -57,7 +58,7 @@ function Shell() {
           const active = tab === t.id
           return (
             <Pressable key={t.id} style={styles.tab} onPress={() => { setTab(t.id); setOpenCourse(null) }}>
-              <Text style={[styles.tabIcon, active && { opacity: 1 }]}>{t.icon}</Text>
+              <Icon name={t.icon} size={20} color={active ? colors.brand : colors.textFaint} />
               <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.label}</Text>
             </Pressable>
           )

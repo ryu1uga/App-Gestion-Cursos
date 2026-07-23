@@ -1,26 +1,28 @@
 // Paleta y tokens de estilo compartidos
+// Concepto: papel cálido + tinta morada. Se aleja del gris slate + azul
+// índigo por defecto para tener identidad propia.
 export const colors = {
-  brand: '#3355f5',
-  brandDark: '#1a2db1',
-  brandLight: '#dbe6ff',
-  bg: '#f1f5f9',
-  card: '#ffffff',
-  border: '#e2e8f0',
-  text: '#1e293b',
-  textSoft: '#64748b',
-  textFaint: '#94a3b8',
-  slate50: '#f8fafc',
-  slate100: '#f1f5f9',
-  // estados
-  emerald: '#059669', emeraldBg: '#d1fae5',
-  amber: '#d97706', amberBg: '#fef3c7',
-  red: '#dc2626', redBg: '#fee2e2',
+  brand: '#6d4a9c',       // morado tinta
+  brandDark: '#4f3676',
+  brandLight: '#ece3f6',  // lila muy claro
+  bg: '#f4f0e9',          // papel cálido
+  card: '#fffdf9',        // blanco hueso
+  border: '#e7ddcf',      // borde cálido
+  text: '#332d2a',        // tinta cálida
+  textSoft: '#6f6459',    // taupe
+  textFaint: '#a99e8e',   // taupe claro
+  slate50: '#faf6ef',     // (nombre heredado) neutro cálido muy claro
+  slate100: '#efe8dc',    // (nombre heredado) neutro cálido claro
+  // estados — verdes/ocres/rojos muteados, no "neón"
+  emerald: '#3f8f5b', emeraldBg: '#e3efe4',
+  amber: '#bf861f', amberBg: '#f6ecd4',
+  red: '#c14d43', redBg: '#f6e2de',
 }
 
-// Colores para elegir por curso
+// Colores para elegir por curso (cálidos y variados, cohesionados con el tema)
 export const palette = [
-  '#3355f5', '#0ea5e9', '#8b5cf6', '#ec4899', '#14b8a6',
-  '#f59e0b', '#f97316', '#ef4444', '#22c55e', '#10b981',
+  '#6d4a9c', '#3b7ea1', '#4f9d69', '#bf861f', '#c86b4a',
+  '#c1517a', '#5a6fc0', '#8a6d3b', '#4aa1a1', '#9c5bbf',
 ]
 
 export const statusColor = {

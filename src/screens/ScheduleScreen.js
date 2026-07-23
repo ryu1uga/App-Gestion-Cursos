@@ -27,7 +27,7 @@ export default function ScheduleScreen({ onOpen }) {
       </View>
 
       {weekList.length === 0 && sinAsignar.length === 0 && (
-        <Card><Text style={styles.empty}>No hay evaluaciones con semana asignada. Asígnalas en cada curso.</Text></Card>
+        <Card><Text style={styles.empty}>Nada con semana asignada todavía. Ponle semana a tus evaluaciones y aparecen aquí.</Text></Card>
       )}
 
       {weekList.map((w) => (

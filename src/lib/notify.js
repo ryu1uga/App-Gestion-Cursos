@@ -65,11 +65,11 @@ export async function rescheduleAll(state) {
 
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: `📌 ${c.name}`,
+            title: c.name,
             body:
               daysBefore <= 0
-                ? `Hoy: ${e.type} · ${e.name}`
-                : `En ${daysBefore} día${daysBefore === 1 ? '' : 's'}: ${e.type} · ${e.name}`,
+                ? `Hoy toca: ${e.type} · ${e.name}`
+                : `Faltan ${daysBefore} día${daysBefore === 1 ? '' : 's'}: ${e.type} · ${e.name}`,
             data: { courseId: c.id, evalId: e.id },
           },
           trigger: fireAt,

@@ -2,7 +2,7 @@ import React from 'react'
 import { ScrollView, View, Text, Pressable, Switch, Alert, StyleSheet } from 'react-native'
 import { useStore, exportJSON, importJSON } from '../lib/store.js'
 import { ensurePermission } from '../lib/notify.js'
-import { Card, NumField } from '../components/ui.js'
+import { Card, NumField, Icon } from '../components/ui.js'
 import { colors } from '../theme.js'
 
 export default function SettingsScreen() {
@@ -35,7 +35,7 @@ export default function SettingsScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Card style={{ marginBottom: 12 }}>
         <Text style={styles.h2}>Escala global por defecto</Text>
-        <Text style={styles.p}>Se aplica a los cursos sin escala propia. Ej.: tu universidad usa 0–20 y aprueba con 11; otra podría usar 0–7 y aprobar con 4 (eso se activa por curso).</Text>
+        <Text style={styles.p}>Se usa en los cursos que no tienen escala propia. Tu facultad usa 0–20 y aprueba con 11; otra quizá 0–7 con 4.</Text>
         <View style={styles.grid}>
           <Field label="Nota mínima" value={s.defaultScale.min} onChange={(v) => setScale({ min: v })} />
           <Field label="Nota máxima" value={s.defaultScale.max} onChange={(v) => setScale({ max: v })} />
@@ -46,7 +46,7 @@ export default function SettingsScreen() {
         <View style={styles.toggleRow}>
           <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={styles.toggleTitle}>Redondear la nota final</Text>
-            <Text style={styles.p}>Al paso de la escala (ej. 10.65 → 11). Actívalo si tu universidad redondea la nota final para aprobar; desactívalo para ver el promedio exacto.</Text>
+            <Text style={styles.p}>Si tu facultad redondea (10.65 pasa a 11), déjalo activo. Apágalo para ver el promedio exacto.</Text>
           </View>
           <Switch value={s.roundFinal !== false} trackColor={{ true: colors.brand }}
             onValueChange={(v) => dispatch({ type: 'UPDATE_SETTINGS', patch: { roundFinal: v } })} />
@@ -62,11 +62,11 @@ export default function SettingsScreen() {
 
       <Card style={{ marginBottom: 12 }}>
         <Text style={styles.h2}>Notificaciones</Text>
-        <Text style={styles.p}>Avisos locales antes de cada evaluación. Requiere que el curso tenga fecha de inicio y que la evaluación tenga semana asignada.</Text>
+        <Text style={styles.p}>Te aviso antes de cada evaluación. Necesito la fecha de inicio del curso y la semana de la evaluación.</Text>
         <View style={styles.toggleRow}>
           <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={styles.toggleTitle}>Activar avisos</Text>
-            <Text style={styles.p}>Te recordamos las evaluaciones próximas.</Text>
+            <Text style={styles.p}>Un recordatorio antes de cada una.</Text>
           </View>
           <Switch value={s.notificationsOn === true} trackColor={{ true: colors.brand }}
             onValueChange={toggleNotifications} />
@@ -81,22 +81,29 @@ export default function SettingsScreen() {
 
       <Card style={{ marginBottom: 24 }}>
         <Text style={styles.h2}>Copia de seguridad</Text>
-        <Text style={styles.p}>Tus datos viven solo en este dispositivo. Expórtalos para respaldar o pasarlos a otro equipo.</Text>
+        <Text style={styles.p}>Tus datos viven solo aquí. Expórtalos para respaldar o mudarte de teléfono.</Text>
         <View style={styles.btnRow}>
-          <Pressable style={styles.btnPrimary} onPress={doExport}><Text style={styles.btnPrimaryText}>⬆ Exportar</Text></Pressable>
-          <Pressable style={styles.btnGhost} onPress={doImport}><Text style={styles.btnGhostText}>⬇ Importar</Text></Pressable>
+          <Pressable style={styles.btnPrimary} onPress={doExport}>
+            <Icon name="upload" size={16} color="#fff" />
+            <Text style={styles.btnPrimaryText}>Exportar</Text>
+          </Pressable>
+          <Pressable style={styles.btnGhost} onPress={doImport}>
+            <Icon name="download" size={16} color={colors.text} />
+            <Text style={styles.btnGhostText}>Importar</Text>
+          </Pressable>
         </View>
       </Card>
 
       <Card style={{ marginBottom: 24 }}>
         <Text style={styles.h2}>Ayuda</Text>
-        <Text style={styles.p}>¿Quieres repasar cómo funciona la app?</Text>
+        <Text style={styles.p}>¿Repasamos cómo funciona?</Text>
         <Pressable style={styles.btnGhost} onPress={() => dispatch({ type: 'UPDATE_SETTINGS', patch: { onboarded: false } })}>
-          <Text style={styles.btnGhostText}>📘 Ver tutorial de nuevo</Text>
+          <Icon name="help-circle" size={16} color={colors.text} />
+          <Text style={styles.btnGhostText}>Ver el tutorial otra vez</Text>
         </Pressable>
       </Card>
 
-      <Text style={styles.footer}>Gestión de Cursos · datos locales en tu dispositivo</Text>
+      <Text style={styles.footer}>Gestión de Cursos · todo vive en tu teléfono</Text>
     </ScrollView>
   )
 }
@@ -121,9 +128,9 @@ const styles = StyleSheet.create({
   toggleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, backgroundColor: colors.slate50, borderRadius: 12, padding: 12 },
   toggleTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 6 },
-  btnPrimary: { backgroundColor: colors.brand, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  btnPrimary: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.brand, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
   btnPrimaryText: { color: '#fff', fontWeight: '700' },
-  btnGhost: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  btnGhost: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
   btnGhostText: { color: colors.text, fontWeight: '700' },
   footer: { textAlign: 'center', fontSize: 12, color: colors.textFaint },
 })

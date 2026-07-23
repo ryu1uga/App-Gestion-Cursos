@@ -9,7 +9,7 @@ import {
 import { useStore } from '../lib/store.js'
 import { analyzeCourse, effectiveScale, effectiveRound, neededOnNext, fmtGrade, STATUS_META, decimalsFromStep } from '../lib/calc.js'
 import { evalDate } from '../lib/notify.js'
-import { Card, Badge, Progress, PickerModal, NumField } from '../components/ui.js'
+import { Card, Badge, Progress, PickerModal, NumField, Icon } from '../components/ui.js'
 import { colors, palette, statusColor } from '../theme.js'
 
 const TYPES = ['Examen', 'Proyecto', 'Práctica', 'Tarea', 'Exposición', 'Control', 'Evaluación', 'Otro']
@@ -54,11 +54,14 @@ export default function CourseDetailScreen({ course, onBack }) {
       <ScaleDecorator>
         <View style={[styles.evalRow, isActive && styles.evalRowActive]}>
           <Pressable onLongPress={drag} delayLongPress={120} style={styles.dragHandle} hitSlop={8}>
-            <Text style={styles.dragHandleText}>≡</Text>
+            <Icon name="menu" size={18} color={colors.textFaint} />
           </Pressable>
           <View style={{ flex: 1, paddingRight: 6 }}>
             <TextInput value={e.name} onChangeText={(t) => patchEval(e.id, { name: t })} style={styles.evalName} />
-            <Pressable onPress={() => setPicker(e.id)}><Text style={styles.evalType}>{e.type} ▾</Text></Pressable>
+            <Pressable onPress={() => setPicker(e.id)} style={styles.typeRow}>
+              <Text style={styles.evalType}>{e.type}</Text>
+              <Icon name="chevron-down" size={13} color={colors.textSoft} />
+            </Pressable>
           </View>
           <NumField style={[styles.cell, styles.wSem]} integer allowEmpty placeholder="—"
             value={e.week} onChangeNumber={(v) => patchEval(e.id, { week: v })} />
@@ -67,8 +70,8 @@ export default function CourseDetailScreen({ course, onBack }) {
           <NumField style={[styles.cell, styles.wNota, { backgroundColor: gradeBg, color: gradeFg, fontWeight: '700' }]}
             value={e.grade} allowEmpty placeholder="pend."
             onChangeNumber={(v) => patchEval(e.id, { grade: v })} />
-          <Pressable style={styles.delEval} onPress={() => dispatch({ type: 'DELETE_EVAL', courseId: course.id, evalId: e.id })}>
-            <Text style={{ color: colors.red }}>✕</Text>
+          <Pressable style={styles.delEval} hitSlop={6} onPress={() => dispatch({ type: 'DELETE_EVAL', courseId: course.id, evalId: e.id })}>
+            <Icon name="x" size={16} color={colors.textFaint} />
           </Pressable>
         </View>
       </ScaleDecorator>
@@ -77,13 +80,16 @@ export default function CourseDetailScreen({ course, onBack }) {
 
   return (
     <NestableScrollContainer contentContainerStyle={styles.container}>
-      <Pressable onPress={onBack}><Text style={styles.back}>← Volver</Text></Pressable>
+      <Pressable onPress={onBack} style={styles.backRow} hitSlop={8}>
+        <Icon name="arrow-left" size={18} color={colors.brand} />
+        <Text style={styles.back}>Volver</Text>
+      </Pressable>
 
       {/* Encabezado */}
       <Card style={{ marginBottom: 12 }}>
         <View style={styles.rowCenter}>
           <TextInput value={course.name} onChangeText={(t) => patchCourse({ name: t })} style={styles.nameInput} />
-          <Pressable onPress={confirmDelete} style={styles.iconBtn}><Text style={{ color: colors.red, fontSize: 16 }}>🗑</Text></Pressable>
+          <Pressable onPress={confirmDelete} style={styles.iconBtn} hitSlop={8}><Icon name="trash-2" size={18} color={colors.red} /></Pressable>
         </View>
         <View style={styles.paletteRow}>
           {palette.map((col) => (
@@ -99,9 +105,9 @@ export default function CourseDetailScreen({ course, onBack }) {
             onChange={(iso) => patchCourse({ endDate: iso })} />
         </View>
         {course.startDate ? (
-          <Text style={styles.datesHint}>Las fechas de cada evaluación se calculan desde el inicio + su semana.</Text>
+          <Text style={styles.datesHint}>Cada evaluación toma su fecha del inicio más su semana.</Text>
         ) : (
-          <Text style={styles.datesHint}>Pon la fecha de inicio para calcular fechas y activar avisos por evaluación.</Text>
+          <Text style={styles.datesHint}>Pon la fecha de inicio y calculo cuándo cae cada evaluación.</Text>
         )}
       </Card>
 
@@ -112,7 +118,7 @@ export default function CourseDetailScreen({ course, onBack }) {
           {fmtGrade(a.currentAvg, scale)}<Text style={styles.bigGradeMax}> / {scale.max}</Text>
         </Text>
         <Progress value={a.currentAvg || 0} max={scale.max} color={course.color} threshold={scale.passing} />
-        <Text style={styles.hintSmall}>Promedio sobre lo ya evaluado ({Math.round(a.gradedWeight * 100)}% del curso)</Text>
+        <Text style={styles.hintSmall}>Vas por el {Math.round(a.gradedWeight * 100)}% del curso ya rendido.</Text>
       </Card>
 
       {/* Panel: estado + para aprobar */}
@@ -130,19 +136,19 @@ export default function CourseDetailScreen({ course, onBack }) {
         <Card style={styles.gridItem}>
           <Text style={styles.kicker}>PARA APROBAR ({scale.passing})</Text>
           {a.pendingWeight <= 0 ? (
-            <Text style={styles.panelMsg}>No quedan evaluaciones pendientes.</Text>
+            <Text style={styles.panelMsg}>Ya no queda nada pendiente.</Text>
           ) : a.status === 'imposible' ? (
-            <Text style={[styles.panelMsg, { color: colors.red }]}>Ya no alcanzas {scale.passing} con lo que queda.</Text>
+            <Text style={[styles.panelMsg, { color: colors.red }]}>Ya no da para {scale.passing} con lo que queda.</Text>
           ) : a.status === 'seguro' ? (
-            <Text style={[styles.panelMsg, { color: colors.emerald }]}>Asegurado, incluso con el mínimo.</Text>
+            <Text style={[styles.panelMsg, { color: colors.emerald }]}>Asegurado, aunque saques lo mínimo.</Text>
           ) : (
             <>
-              <Text style={styles.panelMsg}>Necesitas en promedio en lo que falta:</Text>
+              <Text style={styles.panelMsg}>Te falta sacar, en promedio:</Text>
               <Text style={[styles.bigGrade, { color: colors.amber, fontSize: 30 }]}>
                 {fmtGrade(Math.max(scale.min, a.neededAvgOnPending), scale)}
                 <Text style={styles.bigGradeMax}> / {scale.max}</Text>
               </Text>
-              <Text style={styles.hintSmall}>sobre el {Math.round(a.pendingWeight * 100)}% restante</Text>
+              <Text style={styles.hintSmall}>en el {Math.round(a.pendingWeight * 100)}% que queda</Text>
             </>
           )}
         </Card>
@@ -156,11 +162,11 @@ export default function CourseDetailScreen({ course, onBack }) {
           </Text>
           <Text style={styles.nextName}>{nextEval.name} <Text style={{ color: colors.textFaint }}>({Math.round(nextReq.weight * 100)}%)</Text></Text>
           {nextReq.triviallyOk ? (
-            <Text style={[styles.panelMsg, { color: colors.emerald }]}>Con cualquier nota sigues en carrera (si sacas el máximo en las demás).</Text>
+            <Text style={[styles.panelMsg, { color: colors.emerald }]}>Con cualquier nota sigues, si clavas el resto.</Text>
           ) : nextReq.feasible ? (
-            <Text style={styles.panelMsg}>Mínimo aquí (con máx. en las demás): <Text style={{ color: colors.amber, fontWeight: '800' }}>{nextReq.clamped.toFixed(dec)}</Text></Text>
+            <Text style={styles.panelMsg}>Mínimo aquí, sacando el máximo en lo demás: <Text style={{ color: colors.amber, fontWeight: '800' }}>{nextReq.clamped.toFixed(dec)}</Text></Text>
           ) : (
-            <Text style={[styles.panelMsg, { color: colors.red }]}>Ni con {scale.max} aquí alcanzas; dependerá de varias evaluaciones.</Text>
+            <Text style={[styles.panelMsg, { color: colors.red }]}>Ni con {scale.max} aquí basta; te la juegas en varias.</Text>
           )}
         </Card>
       )}
@@ -183,7 +189,7 @@ export default function CourseDetailScreen({ course, onBack }) {
         </View>
 
         {course.evaluations.length > 1 && (
-          <Text style={styles.reorderHint}>Mantén presionado ≡ y arrastra para reordenar.</Text>
+          <Text style={styles.reorderHint}>Mantén pulsada el asa y arrastra para reordenar.</Text>
         )}
 
         <NestableDraggableFlatList
@@ -220,14 +226,14 @@ export default function CourseDetailScreen({ course, onBack }) {
             <View style={styles.roundRow}>
               <View style={{ flex: 1, paddingRight: 12 }}>
                 <Text style={styles.toggleTitle}>Redondear nota final</Text>
-                <Text style={styles.hintSmall}>Al paso de la escala (ej. 10.65 → 11). Solo para este curso; anula el ajuste global.</Text>
+                <Text style={styles.hintSmall}>Redondea 10.65 a 11. Solo aquí, y manda sobre el ajuste global.</Text>
               </View>
               <Switch value={roundOn} trackColor={{ true: colors.brand }}
                 onValueChange={(v) => patchCourse({ roundFinal: v })} />
             </View>
           </>
         ) : (
-          <Text style={styles.hintSmall}>Usando la escala global: 0–{scale.max}, aprueba con {scale.passing}. Actívala aquí para una escala propia (ej. 0–7) y su propio redondeo.</Text>
+          <Text style={styles.hintSmall}>Usa la escala global (0–{scale.max}, aprueba con {scale.passing}). Actívala para darle a este curso su escala y su redondeo.</Text>
         )}
       </Card>
 
@@ -249,8 +255,8 @@ function DateField({ label, value, onChange, minimumDate }) {
           <Text style={[styles.dateBtnText, !d && { color: colors.textFaint }]}>{d ? d.toLocaleDateString() : 'Elegir'}</Text>
         </Pressable>
         {d && (
-          <Pressable style={styles.dateClearBtn} onPress={() => onChange(null)}>
-            <Text style={styles.dateClear}>✕</Text>
+          <Pressable style={styles.dateClearBtn} onPress={() => onChange(null)} hitSlop={6}>
+            <Icon name="x" size={14} color={colors.textFaint} />
           </Pressable>
         )}
       </View>
@@ -280,7 +286,9 @@ function ScaleField({ label, value, onChange }) {
 
 const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 40 },
-  back: { color: colors.brand, fontWeight: '600', marginBottom: 12 },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  back: { color: colors.brand, fontWeight: '600' },
+  typeRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   rowCenter: { flexDirection: 'row', alignItems: 'center' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   nameInput: { flex: 1, fontSize: 18, fontWeight: '800', color: '#0f172a', padding: 4 },
