@@ -92,7 +92,7 @@ export default function SettingsScreen() {
               <Field label="Avisar días antes" value={s.notifyDaysBefore ?? 2}
                 onChange={(v) => dispatch({ type: 'UPDATE_SETTINGS', patch: { notifyDaysBefore: Math.max(0, Math.trunc(v)) } })} />
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Hora del aviso</Text>
+                <View style={styles.fieldLabelRow}><Text style={styles.fieldLabel}>Hora del aviso</Text></View>
                 <Pressable style={styles.timeBtn} onPress={() => setShowTime(true)}>
                   <Icon name="clock" size={15} color={colors.textSoft} />
                   <Text style={styles.timeBtnText}>{two(s.notifyHour ?? 9)}:{two(s.notifyMinute ?? 0)}</Text>
