@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler'
-import React, { useState } from 'react'
-import { SafeAreaView, View, Text, Pressable, ActivityIndicator, StyleSheet, Platform, StatusBar as RNStatusBar } from 'react-native'
+import React, { useState, useEffect } from 'react'
+import { SafeAreaView, View, Text, Pressable, ActivityIndicator, StyleSheet, Platform, BackHandler, StatusBar as RNStatusBar } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { StatusBar } from 'expo-status-bar'
 import { StoreProvider, useStore } from './src/lib/store.js'
@@ -22,6 +22,18 @@ function Shell() {
   const { state, dispatch } = useStore()
   const [tab, setTab] = useState('cursos')
   const [openCourse, setOpenCourse] = useState(null)
+
+  // Botón físico "atrás" de Android: del detalle vuelve a la lista;
+  // desde otra pestaña vuelve a Cursos; recién ahí deja salir de la app.
+  useEffect(() => {
+    const onBack = () => {
+      if (openCourse) { setOpenCourse(null); return true }
+      if (tab !== 'cursos') { setTab('cursos'); return true }
+      return false
+    }
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBack)
+    return () => sub.remove()
+  }, [openCourse, tab])
 
   if (!state.loaded) {
     return (

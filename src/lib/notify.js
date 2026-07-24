@@ -31,6 +31,26 @@ export function evalDate(startDate, week) {
   return d
 }
 
+// Fecha efectiva de una evaluación: el DÍA EXACTO si se fijó (ev.date),
+// si no, la derivada de inicio + semana. Devuelve Date (a medianoche) o null.
+export function evalEffectiveDate(course, ev) {
+  if (ev?.date) {
+    const d = new Date(ev.date)
+    if (!Number.isNaN(d.getTime())) { d.setHours(0, 0, 0, 0); return d }
+  }
+  return evalDate(course?.startDate, ev?.week)
+}
+
+// Calcula el número de semana (1..N) de una fecha dada, respecto al inicio del curso.
+export function weekFromDate(startDate, dateISO) {
+  if (!startDate || !dateISO) return null
+  const s = new Date(startDate); if (Number.isNaN(s.getTime())) return null
+  const d = new Date(dateISO); if (Number.isNaN(d.getTime())) return null
+  s.setHours(0, 0, 0, 0); d.setHours(0, 0, 0, 0)
+  const diffDays = Math.round((d.getTime() - s.getTime()) / DAY_MS) // round: absorbe cambios de hora (DST)
+  return Math.floor(diffDays / 7) + 1
+}
+
 // Domingo que cierra la semana ANTERIOR a la semana de la evaluación.
 // Ej.: eval miércoles 22/07 -> lunes de su semana = 20/07 -> domingo previo = 19/07.
 export function prevWeekSunday(evDay) {
@@ -87,10 +107,9 @@ export async function rescheduleAll(state) {
     const now = Date.now()
 
     for (const c of state.courses) {
-      if (!c.startDate) continue
       for (const e of c.evaluations) {
         if (e.grade != null && e.grade !== '') continue // ya tiene nota
-        const evDay = evalDate(c.startDate, e.week)
+        const evDay = evalEffectiveDate(c, e)
         if (!evDay) continue
         const fireAt = notifyFireAt(evDay, daysBefore, hour, minute)
         if (!fireAt || fireAt.getTime() <= now) continue // ya pasó

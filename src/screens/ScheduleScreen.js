@@ -1,12 +1,24 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native'
 import { useStore } from '../lib/store.js'
+import { evalEffectiveDate } from '../lib/notify.js'
 import { Card, Badge } from '../components/ui.js'
+import Calendar from '../components/Calendar.js'
 import { colors } from '../theme.js'
 
 export default function ScheduleScreen({ onOpen }) {
   const { state } = useStore()
+  const [view, setView] = useState('semana') // 'semana' | 'calendario'
   const weeks = state.settings.semesterWeeks || 16
+
+  // Ítems con fecha efectiva para el calendario
+  const calItems = []
+  state.courses.forEach((c) => {
+    c.evaluations.forEach((e) => {
+      const d = evalEffectiveDate(c, e)
+      if (d) calItems.push({ date: d, courseName: c.name, courseColor: c.color, courseId: c.id, type: e.type, name: e.name, grade: e.grade })
+    })
+  })
 
   const byWeek = {}
   const sinAsignar = []
@@ -23,14 +35,28 @@ export default function ScheduleScreen({ onOpen }) {
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.row}>
         <Text style={styles.h2}>Cronograma</Text>
-        <Text style={styles.sub}>{weeks} semanas</Text>
+        <View style={styles.toggle}>
+          {['semana', 'calendario'].map((v) => (
+            <Pressable key={v} onPress={() => setView(v)} style={[styles.segBtn, view === v && styles.segBtnOn]}>
+              <Text style={[styles.segText, view === v && styles.segTextOn]}>{v === 'semana' ? 'Por semana' : 'Calendario'}</Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
-      {weekList.length === 0 && sinAsignar.length === 0 && (
+      {view === 'calendario' && (
+        <Card style={{ marginBottom: 24 }}>
+          {calItems.length === 0
+            ? <Text style={styles.empty}>Aún no hay evaluaciones con fecha. Asigna semana o fija el día exacto en cada curso.</Text>
+            : <Calendar items={calItems} onOpen={onOpen} />}
+        </Card>
+      )}
+
+      {view === 'semana' && weekList.length === 0 && sinAsignar.length === 0 && (
         <Card><Text style={styles.empty}>Nada con semana asignada todavía. Ponle semana a tus evaluaciones y aparecen aquí.</Text></Card>
       )}
 
-      {weekList.map((w) => (
+      {view === 'semana' && weekList.map((w) => (
         <Card key={w} style={{ marginBottom: 12 }}>
           <View style={styles.weekHead}>
             <View style={styles.weekNum}><Text style={styles.weekNumText}>{w}</Text></View>
@@ -48,7 +74,7 @@ export default function ScheduleScreen({ onOpen }) {
         </Card>
       ))}
 
-      {sinAsignar.length > 0 && (
+      {view === 'semana' && sinAsignar.length > 0 && (
         <Card style={{ marginBottom: 24 }}>
           <Text style={styles.sinTitle}>Sin semana asignada ({sinAsignar.length})</Text>
           {sinAsignar.map((e) => (
@@ -69,6 +95,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   h2: { fontSize: 17, fontWeight: '700', color: colors.text },
   sub: { fontSize: 13, color: colors.textSoft },
+  toggle: { flexDirection: 'row', backgroundColor: colors.slate100, borderRadius: 10, padding: 3 },
+  segBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  segBtnOn: { backgroundColor: colors.card },
+  segText: { fontSize: 12, fontWeight: '700', color: colors.textFaint },
+  segTextOn: { color: colors.brand },
   empty: { color: colors.textSoft, textAlign: 'center', paddingVertical: 16 },
   weekHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   weekNum: { width: 30, height: 30, borderRadius: 8, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', marginRight: 8 },

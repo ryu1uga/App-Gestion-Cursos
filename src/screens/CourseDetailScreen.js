@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { View, Text, TextInput, Pressable, Switch, Alert, StyleSheet } from 'react-native'
+import React, { useState, useRef } from 'react'
+import { View, Text, TextInput, Pressable, Switch, Alert, Keyboard, StyleSheet } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import {
   NestableScrollContainer,
@@ -8,21 +8,32 @@ import {
 } from 'react-native-draggable-flatlist'
 import { useStore } from '../lib/store.js'
 import { analyzeCourse, effectiveScale, effectiveRound, neededOnNext, fmtGrade, STATUS_META, decimalsFromStep } from '../lib/calc.js'
-import { evalDate, notifyFireAt } from '../lib/notify.js'
-import { Card, Badge, Progress, PickerModal, NumField, Icon } from '../components/ui.js'
+import { evalEffectiveDate, weekFromDate, notifyFireAt } from '../lib/notify.js'
+import { Card, Badge, Progress, PickerModal, NumField, Icon, InfoButton } from '../components/ui.js'
 import { colors, palette, statusColor } from '../theme.js'
 
 const TYPES = ['Examen', 'Proyecto', 'Práctica', 'Tarea', 'Exposición', 'Control', 'Evaluación', 'Otro']
 
-const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString() : null)
 const two = (n) => String(n).padStart(2, '0')
+const fmtDate = (d) => (d ? d.toLocaleDateString() : null)
 const fmtDateTime = (d) => `${d.toLocaleDateString()} a las ${two(d.getHours())}:${two(d.getMinutes())}`
+const shortDate = (d) => `${d.getDate()} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()]}`
 // Recorta ceros/decimales innecesarios para mostrar el peso
 const trimNum = (n) => String(Number(Number(n).toFixed(2)))
+
+const STEP_INFO = {
+  title: 'Paso de la nota',
+  text: 'Define a qué valores se ajusta (redondea) la nota final:\n\n• 1 → notas enteras (…, 10, 11, 12)\n• 0.5 → medios puntos (10, 10.5, 11)\n• 0.25 → cuartos (10, 10.25, 10.5)\n• 0.1 → un decimal (10.0, 10.1, 10.2)\n\nElige el que use tu facultad para calcular la nota final.',
+}
 
 export default function CourseDetailScreen({ course, onBack }) {
   const { state, dispatch } = useStore()
   const [picker, setPicker] = useState(null) // evalId con selector de tipo abierto
+  const [datePickerFor, setDatePickerFor] = useState(null) // evalId con calendario abierto
+  const inputRefs = useRef({})
+  const setRef = (key) => (r) => { if (r) inputRefs.current[key] = r; else delete inputRefs.current[key] }
+  const focusRef = (key) => inputRefs.current[key]?.focus?.()
+
   const scale = effectiveScale(course, state.settings)
   const round = effectiveRound(course, state.settings)
   const a = analyzeCourse(course.evaluations, scale, { round })
@@ -33,9 +44,24 @@ export default function CourseDetailScreen({ course, onBack }) {
   const patchCourse = (patch) => dispatch({ type: 'UPDATE_COURSE', id: course.id, patch })
   const patchEval = (evalId, patch) => dispatch({ type: 'UPDATE_EVAL', courseId: course.id, evalId, patch })
 
-  const nextEval = [...a.pending].sort((x, y) => (x.week ?? 99) - (y.week ?? 99))[0]
+  // Fija la fecha exacta de una evaluación y, si hay fecha de inicio, calcula la semana.
+  const setEvalDate = (evalId, iso) => {
+    const week = course.startDate ? weekFromDate(course.startDate, iso) : null
+    patchEval(evalId, week != null ? { date: iso, week } : { date: iso })
+  }
+
+  // Próxima evaluación pendiente: por fecha efectiva (día exacto o derivado), luego por semana.
+  const pendingSorted = a.pending
+    .map((e) => ({ e, d: evalEffectiveDate(course, e) }))
+    .sort((x, y) => {
+      if (x.d && y.d) return x.d - y.d
+      if (x.d) return -1
+      if (y.d) return 1
+      return (x.e.week ?? 99) - (y.e.week ?? 99)
+    })
+  const nextEval = pendingSorted[0]?.e
+  const nextDate = pendingSorted[0]?.d || null
   const nextReq = nextEval ? neededOnNext(a, nextEval, scale) : null
-  const nextDate = nextEval && course.startDate ? evalDate(course.startDate, nextEval.week) : null
   const nextFire = state.settings.notificationsOn && nextDate
     ? notifyFireAt(nextDate, Number(state.settings.notifyDaysBefore ?? 2), Number(state.settings.notifyHour ?? 9), Number(state.settings.notifyMinute ?? 0))
     : null
@@ -55,6 +81,8 @@ export default function CourseDetailScreen({ course, onBack }) {
     const wPct = a.asPercent ? e.weight : (e.weight || 0) * 100
     const gradeBg = e.grade == null ? colors.slate100 : e.grade >= scale.passing ? statusColor.emerald.bg : statusColor.red.bg
     const gradeFg = e.grade == null ? colors.textFaint : e.grade >= scale.passing ? statusColor.emerald.fg : statusColor.red.fg
+    const idx = course.evaluations.findIndex((x) => x.id === e.id)
+    const nextItem = course.evaluations[idx + 1]
     return (
       <ScaleDecorator>
         <View style={[styles.evalRow, isActive && styles.evalRowActive]}>
@@ -63,15 +91,23 @@ export default function CourseDetailScreen({ course, onBack }) {
           </Pressable>
           <View style={{ flex: 1, paddingRight: 6 }}>
             <TextInput value={e.name} onChangeText={(t) => patchEval(e.id, { name: t })} style={styles.evalName} />
-            <Pressable onPress={() => setPicker(e.id)} style={styles.typeRow}>
-              <Text style={styles.evalType}>{e.type}</Text>
-              <Icon name="chevron-down" size={13} color={colors.textSoft} />
-            </Pressable>
+            <View style={styles.typeRow}>
+              <Pressable onPress={() => setPicker(e.id)} style={styles.typeChip} hitSlop={6}>
+                <Text style={styles.evalType}>{e.type}</Text>
+                <Icon name="chevron-down" size={13} color={colors.textSoft} />
+              </Pressable>
+              <Pressable onPress={() => setDatePickerFor(e.id)} style={styles.dateChip} hitSlop={6}>
+                <Icon name="calendar" size={12} color={e.date ? colors.brand : colors.textFaint} />
+                {e.date ? <Text style={styles.dateChipText}>{shortDate(new Date(e.date))}</Text> : null}
+              </Pressable>
+            </View>
           </View>
-          <NumField style={[styles.cell, styles.wSem]} integer allowEmpty placeholder="—"
-            value={e.week} onChangeNumber={(v) => patchEval(e.id, { week: v })} />
-          <NumField style={[styles.cell, styles.wPeso]} value={wPct} format={trimNum}
-            onChangeNumber={(v) => patchEval(e.id, { weight: a.asPercent ? v : v / 100 })} />
+          <NumField ref={setRef(`${e.id}:week`)} style={[styles.cell, styles.wSem]} integer allowEmpty placeholder="—"
+            value={e.week} onChangeNumber={(v) => patchEval(e.id, { week: v })}
+            onNext={() => focusRef(`${e.id}:weight`)} />
+          <NumField ref={setRef(`${e.id}:weight`)} style={[styles.cell, styles.wPeso]} value={wPct} format={trimNum}
+            onChangeNumber={(v) => patchEval(e.id, { weight: a.asPercent ? v : v / 100 })}
+            onNext={() => { if (nextItem) focusRef(`${nextItem.id}:week`); else Keyboard.dismiss() }} />
           <NumField style={[styles.cell, styles.wNota, { backgroundColor: gradeBg, color: gradeFg, fontWeight: '700' }]}
             value={e.grade} allowEmpty placeholder="pend."
             onChangeNumber={(v) => patchEval(e.id, { grade: v })} />
@@ -110,9 +146,9 @@ export default function CourseDetailScreen({ course, onBack }) {
             onChange={(iso) => patchCourse({ endDate: iso })} />
         </View>
         {course.startDate ? (
-          <Text style={styles.datesHint}>Cada evaluación toma su fecha del inicio más su semana.</Text>
+          <Text style={styles.datesHint}>Cada evaluación toma su fecha del inicio más su semana. Con el ícono de calendario fijas el día exacto y calculo la semana.</Text>
         ) : (
-          <Text style={styles.datesHint}>Pon la fecha de inicio y calculo cuándo cae cada evaluación.</Text>
+          <Text style={styles.datesHint}>Pon la fecha de inicio para calcular cuándo cae cada evaluación, o fija el día exacto con el ícono de calendario de cada fila.</Text>
         )}
       </Card>
 
@@ -163,7 +199,7 @@ export default function CourseDetailScreen({ course, onBack }) {
       {nextEval && nextReq && a.status !== 'seguro' && a.status !== 'imposible' && (
         <Card style={{ marginBottom: 12, borderLeftWidth: 4, borderLeftColor: colors.amber }}>
           <Text style={styles.kicker}>
-            PRÓXIMA{nextEval.week ? ` · SEMANA ${nextEval.week}` : ''}{nextDate ? ` · ${fmtDate(nextDate.toISOString())}` : ''}
+            PRÓXIMA{nextEval.week ? ` · SEMANA ${nextEval.week}` : ''}{nextDate ? ` · ${fmtDate(nextDate)}` : ''}
           </Text>
           <Text style={styles.nextName}>{nextEval.name} <Text style={{ color: colors.textFaint }}>({Math.round(nextReq.weight * 100)}%)</Text></Text>
           {nextReq.triviallyOk ? (
@@ -236,7 +272,7 @@ export default function CourseDetailScreen({ course, onBack }) {
               <ScaleField label="Mínima" value={course.scale.min} onChange={(v) => patchCourse({ scale: { ...course.scale, min: v } })} />
               <ScaleField label="Máxima" value={course.scale.max} onChange={(v) => patchCourse({ scale: { ...course.scale, max: v } })} />
               <ScaleField label="Aprobar" value={course.scale.passing} onChange={(v) => patchCourse({ scale: { ...course.scale, passing: v } })} />
-              <ScaleField label="Paso" value={course.scale.step} onChange={(v) => patchCourse({ scale: { ...course.scale, step: v } })} />
+              <ScaleField label="Paso" value={course.scale.step} onChange={(v) => patchCourse({ scale: { ...course.scale, step: v } })} info={STEP_INFO} />
             </View>
             <View style={styles.roundRow}>
               <View style={{ flex: 1, paddingRight: 12 }}>
@@ -255,6 +291,18 @@ export default function CourseDetailScreen({ course, onBack }) {
       <PickerModal visible={picker != null} title="Tipo de evaluación" options={TYPES}
         value={course.evaluations.find((e) => e.id === picker)?.type}
         onSelect={(t) => patchEval(picker, { type: t })} onClose={() => setPicker(null)} />
+
+      {datePickerFor != null && (
+        <DateTimePicker
+          value={(() => { const ev = course.evaluations.find((e) => e.id === datePickerFor); return ev?.date ? new Date(ev.date) : (course.startDate ? new Date(course.startDate) : new Date()) })()}
+          mode="date"
+          onChange={(event, selected) => {
+            const id = datePickerFor
+            setDatePickerFor(null)
+            if (event.type === 'set' && selected) setEvalDate(id, selected.toISOString())
+          }}
+        />
+      )}
     </NestableScrollContainer>
   )
 }
@@ -290,10 +338,13 @@ function DateField({ label, value, onChange, minimumDate }) {
   )
 }
 
-function ScaleField({ label, value, onChange }) {
+function ScaleField({ label, value, onChange, info }) {
   return (
     <View style={styles.scaleField}>
-      <Text style={styles.scaleLabel}>{label}</Text>
+      <View style={styles.scaleLabelRow}>
+        <Text style={styles.scaleLabel}>{label}</Text>
+        {info ? <InfoButton title={info.title} text={info.text} size={13} /> : null}
+      </View>
       <NumField style={styles.scaleInput} value={value} onChangeNumber={(v) => onChange(v)} />
     </View>
   )
@@ -303,7 +354,11 @@ const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 40 },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
   back: { color: colors.brand, fontWeight: '600' },
-  typeRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  typeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
+  typeChip: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  dateChip: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  dateChipText: { fontSize: 11, color: colors.brand, fontWeight: '600' },
+  scaleLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
   rowCenter: { flexDirection: 'row', alignItems: 'center' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   nameInput: { flex: 1, fontSize: 18, fontWeight: '800', color: '#0f172a', padding: 4 },

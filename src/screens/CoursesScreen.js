@@ -1,18 +1,31 @@
 import React from 'react'
-import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native'
+import { ScrollView, View, Text, Pressable, Alert, StyleSheet } from 'react-native'
 import { useStore } from '../lib/store.js'
+import { newId } from '../lib/id.js'
 import { analyzeCourse, effectiveScale, effectiveRound, fmtGrade, STATUS_META } from '../lib/calc.js'
-import { Card, Badge, Progress } from '../components/ui.js'
+import { Card, Badge, Progress, Icon } from '../components/ui.js'
 import { colors } from '../theme.js'
 
 export default function CoursesScreen({ onOpen }) {
   const { state, dispatch } = useStore()
 
+  const createCourse = () => {
+    const id = newId()
+    dispatch({ type: 'ADD_COURSE', id })
+    onOpen(id) // entra directo al detalle para editar
+  }
+
+  const confirmDelete = (c) =>
+    Alert.alert('Eliminar curso', `¿Eliminar "${c.name}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: () => dispatch({ type: 'DELETE_COURSE', id: c.id }) },
+    ])
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.row}>
         <Text style={styles.h2}>Mis cursos ({state.courses.length})</Text>
-        <Pressable style={styles.addBtn} onPress={() => dispatch({ type: 'ADD_COURSE' })}>
+        <Pressable style={styles.addBtn} onPress={createCourse}>
           <Text style={styles.addBtnText}>+ Nuevo</Text>
         </Pressable>
       </View>
@@ -34,7 +47,12 @@ export default function CoursesScreen({ onOpen }) {
                   <View style={[styles.dot, { backgroundColor: c.color }]} />
                   <Text style={styles.courseName}>{c.name}</Text>
                 </View>
-                <Badge color={meta.color}>{meta.label}</Badge>
+                <View style={styles.headRight}>
+                  <Badge color={meta.color}>{meta.label}</Badge>
+                  <Pressable style={styles.moreBtn} hitSlop={8} onPress={() => confirmDelete(c)}>
+                    <Icon name="more-vertical" size={18} color={colors.textFaint} />
+                  </Pressable>
+                </View>
               </View>
 
               <View style={styles.gradeRow}>
@@ -69,6 +87,8 @@ const styles = StyleSheet.create({
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   empty: { color: colors.textSoft, textAlign: 'center', paddingVertical: 16 },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  headRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  moreBtn: { padding: 2 },
   dot: { width: 12, height: 12, borderRadius: 6, marginRight: 8 },
   courseName: { fontWeight: '700', color: colors.text, fontSize: 15, flexShrink: 1 },
   gradeRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 6 },

@@ -1,12 +1,17 @@
 import React, { useState } from 'react'
 import { ScrollView, View, Text, Pressable, Switch, Alert, StyleSheet } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { useStore, exportJSON, importJSON } from '../lib/store.js'
+import { useStore, exportJSON, downloadJSON, importJSON } from '../lib/store.js'
 import { ensurePermission } from '../lib/notify.js'
-import { Card, NumField, Icon } from '../components/ui.js'
+import { Card, NumField, Icon, InfoButton } from '../components/ui.js'
 import { colors } from '../theme.js'
 
 const two = (n) => String(n).padStart(2, '0')
+
+const STEP_INFO = {
+  title: 'Paso de la nota',
+  text: 'Define a qué valores se ajusta (redondea) la nota final:\n\n• 1 → notas enteras (…, 10, 11, 12)\n• 0.5 → medios puntos (10, 10.5, 11)\n• 0.25 → cuartos (10, 10.25, 10.5)\n• 0.1 → un decimal (10.0, 10.1, 10.2)\n\nElige el que use tu facultad.',
+}
 
 export default function SettingsScreen() {
   const { state, dispatch } = useStore()
@@ -23,6 +28,12 @@ export default function SettingsScreen() {
 
   const doExport = async () => {
     try { await exportJSON(state) } catch (e) { Alert.alert('Error al exportar', String(e.message || e)) }
+  }
+  const doDownload = async () => {
+    try {
+      const uri = await downloadJSON(state)
+      if (uri) Alert.alert('Backup guardado', 'Tu archivo JSON se guardó en la carpeta que elegiste.')
+    } catch (e) { Alert.alert('Error al guardar', String(e.message || e)) }
   }
   const doImport = async () => {
     try {
@@ -44,13 +55,13 @@ export default function SettingsScreen() {
           <Field label="Nota mínima" value={s.defaultScale.min} onChange={(v) => setScale({ min: v })} />
           <Field label="Nota máxima" value={s.defaultScale.max} onChange={(v) => setScale({ max: v })} />
           <Field label="Aprobar con" value={s.defaultScale.passing} onChange={(v) => setScale({ passing: v })} />
-          <Field label="Paso (1=enteros)" value={s.defaultScale.step} onChange={(v) => setScale({ step: v })} />
+          <Field label="Paso" value={s.defaultScale.step} onChange={(v) => setScale({ step: v })} info={STEP_INFO} />
         </View>
 
         <View style={styles.toggleRow}>
           <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={styles.toggleTitle}>Redondear la nota final</Text>
-            <Text style={styles.p}>Si tu facultad redondea (10.65 pasa a 11), déjalo activo. Apágalo para ver el promedio exacto.</Text>
+            <Text style={styles.p}>Ajusta la nota final al paso de tu escala (a enteros, medios o decimales, según tu configuración). Actívalo si tu facultad redondea; apágalo para el promedio exacto.</Text>
           </View>
           <Switch value={s.roundFinal !== false} trackColor={{ true: colors.brand }}
             onValueChange={(v) => dispatch({ type: 'UPDATE_SETTINGS', patch: { roundFinal: v } })} />
@@ -108,14 +119,18 @@ export default function SettingsScreen() {
 
       <Card style={{ marginBottom: 24 }}>
         <Text style={styles.h2}>Copia de seguridad</Text>
-        <Text style={styles.p}>Tus datos viven solo aquí. Expórtalos para respaldar o mudarte de teléfono.</Text>
+        <Text style={styles.p}>Tus datos viven solo aquí. Descárgalos como archivo, compártelos o vuelve a importarlos.</Text>
         <View style={styles.btnRow}>
-          <Pressable style={styles.btnPrimary} onPress={doExport}>
-            <Icon name="upload" size={16} color="#fff" />
-            <Text style={styles.btnPrimaryText}>Exportar</Text>
+          <Pressable style={styles.btnPrimary} onPress={doDownload}>
+            <Icon name="download" size={16} color="#fff" />
+            <Text style={styles.btnPrimaryText}>Descargar</Text>
+          </Pressable>
+          <Pressable style={styles.btnGhost} onPress={doExport}>
+            <Icon name="share-2" size={16} color={colors.text} />
+            <Text style={styles.btnGhostText}>Compartir</Text>
           </Pressable>
           <Pressable style={styles.btnGhost} onPress={doImport}>
-            <Icon name="download" size={16} color={colors.text} />
+            <Icon name="upload" size={16} color={colors.text} />
             <Text style={styles.btnGhostText}>Importar</Text>
           </Pressable>
         </View>
@@ -135,10 +150,13 @@ export default function SettingsScreen() {
   )
 }
 
-function Field({ label, value, onChange }) {
+function Field({ label, value, onChange, info }) {
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.fieldLabelRow}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        {info ? <InfoButton title={info.title} text={info.text} size={13} /> : null}
+      </View>
       <NumField style={styles.fieldInput} value={value} onChangeNumber={(v) => onChange(v)} />
     </View>
   )
@@ -150,13 +168,14 @@ const styles = StyleSheet.create({
   p: { fontSize: 13, color: colors.textSoft, marginBottom: 8, lineHeight: 18 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   field: { flexGrow: 1, minWidth: '45%' },
-  fieldLabel: { fontSize: 12, color: colors.textSoft, marginBottom: 4 },
+  fieldLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
+  fieldLabel: { fontSize: 12, color: colors.textSoft },
   fieldInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 9, textAlign: 'center', color: colors.text },
   timeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 9 },
   timeBtnText: { color: colors.text, fontWeight: '700', fontSize: 15 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, backgroundColor: colors.slate50, borderRadius: 12, padding: 12 },
   toggleTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
-  btnRow: { flexDirection: 'row', gap: 10, marginTop: 6 },
+  btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 6 },
   btnPrimary: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.brand, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
   btnPrimaryText: { color: '#fff', fontWeight: '700' },
   btnGhost: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },

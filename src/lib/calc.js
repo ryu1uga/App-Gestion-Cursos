@@ -89,23 +89,29 @@ export function analyzeCourse(evaluations = [], scale = DEFAULT_SCALE, opts = {}
   // Suma ponderada de lo ya obtenido (en puntos absolutos sobre 'max')
   const earned = graded.reduce((s, e) => s + norm(e.weight) * e.grade, 0)
 
-  // Valores crudos (sin redondear) para comparaciones internas
+  // Base de normalización: el peso total ingresado (para que máx/mín/estado
+  // usen la MISMA escala que la nota actual y la proyección, sumen o no 100%).
+  const tw = totalWeight > 1e-9 ? totalWeight : 1
+  const clampScale = (v) => Math.min(scale.max, Math.max(scale.min, v))
+
+  // Valores crudos (sin redondear ni recortar) para comparaciones internas.
+  // Todo expresado como NOTA FINAL en la escala (dividido por el peso total).
   const currentAvgRaw = gradedWeight > 0 ? earned / gradedWeight : null
-  const rawMax = earned + pendingWeight * scale.max
-  const rawMin = earned + pendingWeight * scale.min
-  const projRaw = totalWeight > 0 ? earned / totalWeight : null
+  const rawMax = (earned + pendingWeight * scale.max) / tw
+  const rawMin = (earned + pendingWeight * scale.min) / tw
+  const projRaw = earned / tw
 
   // ¿Cuánto necesito (en promedio) en lo pendiente para aprobar?
-  // final = earned + pendingWeight * x  >= passThreshold
+  // (earned + pendingWeight * x) / tw  >= passThreshold
   let neededAvgOnPending = null
   if (pendingWeight > 0) {
-    neededAvgOnPending = (passThreshold - earned) / pendingWeight
+    neededAvgOnPending = (passThreshold * tw - earned) / pendingWeight
   }
 
-  // Estado global del curso (comparando el valor crudo contra el umbral efectivo)
+  // Estado global del curso (comparando la nota final normalizada vs. el umbral)
   let status
   if (pendingWeight <= 1e-9) {
-    status = earned >= passThreshold - 1e-9 ? 'aprobado' : 'desaprobado'
+    status = projRaw >= passThreshold - 1e-9 ? 'aprobado' : 'desaprobado'
   } else if (rawMax < passThreshold - 1e-9) {
     status = 'imposible' // ni con el máximo alcanzas a aprobar
   } else if (rawMin >= passThreshold - 1e-9) {
@@ -126,13 +132,14 @@ export function analyzeCourse(evaluations = [], scale = DEFAULT_SCALE, opts = {}
     pending,
     gradedWeight,
     pendingWeight,
+    totalWeightFrac: totalWeight,
     earned,
-    // Valores para mostrar (redondeados si corresponde)
+    // Valores para mostrar (recortados a la escala y redondeados si corresponde)
     currentAvg: finalize(currentAvgRaw),
-    maxPossible: finalize(rawMax),
-    minPossible: finalize(rawMin),
+    maxPossible: finalize(clampScale(rawMax)),
+    minPossible: finalize(clampScale(rawMin)),
     neededAvgOnPending,
-    projectedIfStopNow: finalize(projRaw),
+    projectedIfStopNow: finalize(clampScale(projRaw)),
     // Crudos por si se necesitan
     currentAvgRaw,
     status,
@@ -147,13 +154,14 @@ export function analyzeCourse(evaluations = [], scale = DEFAULT_SCALE, opts = {}
 export function neededOnNext(analysis, nextEval, scale) {
   const { earned, pendingWeight } = analysis
   const asPercent = analysis.asPercent
+  const tw = analysis.totalWeightFrac > 1e-9 ? analysis.totalWeightFrac : 1
   const wNext = (Number(nextEval.weight) || 0) / (asPercent ? 100 : 1)
   if (wNext <= 0) return null
 
   const otherPendingWeight = pendingWeight - wNext
-  // final = earned + otherPending*max + wNext*x >= passThreshold
+  // (earned + otherPending*max + wNext*x) / tw >= passThreshold
   const pass = analysis.passThreshold ?? scale.passing
-  const required = (pass - earned - otherPendingWeight * scale.max) / wNext
+  const required = (pass * tw - earned - otherPendingWeight * scale.max) / wNext
 
   return {
     weight: wNext,

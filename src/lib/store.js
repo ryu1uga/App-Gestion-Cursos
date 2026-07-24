@@ -2,6 +2,7 @@
 //  Store global + persistencia (AsyncStorage) para React Native
 // ============================================================
 import React, { createContext, useContext, useEffect, useReducer, useRef } from 'react'
+import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as FileSystem from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
@@ -27,7 +28,7 @@ function reducer(state, action) {
         courses: [
           ...state.courses,
           {
-            id: newId(), name: action.name || 'Nuevo curso', color: action.color || '#3355f5',
+            id: action.id || newId(), name: action.name || 'Nuevo curso', color: action.color || '#3355f5',
             useOwnScale: false, scale: { ...state.settings.defaultScale },
             startDate: null, endDate: null, roundFinal: null, evaluations: [],
           },
@@ -49,7 +50,7 @@ function reducer(state, action) {
                 ...c,
                 evaluations: [
                   ...c.evaluations,
-                  { id: newId(), name: `Evaluación ${c.evaluations.length + 1}`, type: 'Evaluación', week: null, weight: 0, grade: null },
+                  { id: newId(), name: `Evaluación ${c.evaluations.length + 1}`, type: 'Evaluación', week: null, date: null, weight: 0, grade: null },
                 ],
               }
             : c,
@@ -125,12 +126,40 @@ export function StoreProvider({ children }) {
 }
 
 // ---- Export / Import ----
+const backupName = () => `notaflow-${new Date().toISOString().slice(0, 10)}.json`
+
+// Compartir (menú del sistema: WhatsApp, Drive, Guardar en Archivos, etc.)
 export async function exportJSON(state) {
   const { loaded, ...data } = state
-  const fileUri = FileSystem.documentDirectory + `notaflow-${new Date().toISOString().slice(0, 10)}.json`
+  const fileUri = FileSystem.documentDirectory + backupName()
   await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(data, null, 2))
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Exportar datos' })
+  }
+  return fileUri
+}
+
+// Descargar/guardar el JSON en una carpeta del dispositivo.
+// Android: pide elegir carpeta (Storage Access Framework) y escribe ahí.
+// iOS: escribe y abre "Guardar en Archivos" vía el menú de compartir.
+// Devuelve la ruta, null si el usuario canceló.
+export async function downloadJSON(state) {
+  const { loaded, ...data } = state
+  const content = JSON.stringify(data, null, 2)
+  const name = backupName()
+
+  if (Platform.OS === 'android') {
+    const perm = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync()
+    if (!perm.granted) return null
+    const uri = await FileSystem.StorageAccessFramework.createFileAsync(perm.directoryUri, name, 'application/json')
+    await FileSystem.writeAsStringAsync(uri, content)
+    return uri
+  }
+
+  const fileUri = FileSystem.documentDirectory + name
+  await FileSystem.writeAsStringAsync(fileUri, content)
+  if (await Sharing.isAvailableAsync()) {
+    await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Guardar backup' })
   }
   return fileUri
 }

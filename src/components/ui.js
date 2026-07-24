@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { View, Text, Pressable, Modal, TextInput, StyleSheet } from 'react-native'
+import React, { useState, useId, forwardRef } from 'react'
+import { View, Text, Pressable, Modal, TextInput, InputAccessoryView, Keyboard, Platform, StyleSheet } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { colors, statusColor } from '../theme.js'
 
@@ -18,7 +18,7 @@ export function Card({ children, style }) {
 //  intermedios como "10." o "10,5") y solo convierte a número al
 //  terminar de editar. Evita la corrupción al teclear decimales.
 // ------------------------------------------------------------
-export function NumField({
+export const NumField = forwardRef(function NumField({
   value,
   onChangeNumber,
   style,
@@ -26,9 +26,12 @@ export function NumField({
   allowEmpty = false,
   integer = false,
   format,
-}) {
+  onNext,          // callback para saltar al siguiente campo (enter / barra iOS)
+  nextLabel = 'Siguiente ▸',
+}, ref) {
   const [focused, setFocused] = useState(false)
   const [text, setText] = useState('')
+  const accId = 'num-' + useId()
 
   const asText = (v) => (v == null || v === '' ? '' : String(v))
   const displayed = focused ? text : (format ? (value == null || value === '' ? '' : format(value)) : asText(value))
@@ -52,20 +55,37 @@ export function NumField({
     onChangeNumber(n)
   }
 
+  const handleSubmit = () => { commit(); if (onNext) onNext() }
+
   return (
-    <TextInput
-      style={style}
-      placeholder={placeholder}
-      placeholderTextColor={colors.textFaint}
-      keyboardType={integer ? 'number-pad' : 'decimal-pad'}
-      value={displayed}
-      onFocus={() => { setFocused(true); setText(asText(value)) }}
-      onChangeText={handleChange}
-      onEndEditing={commit}
-      onBlur={commit}
-    />
+    <>
+      <TextInput
+        ref={ref}
+        style={style}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textFaint}
+        keyboardType={integer ? 'number-pad' : 'decimal-pad'}
+        value={displayed}
+        returnKeyType={onNext ? 'next' : undefined}
+        blurOnSubmit={onNext ? false : undefined}
+        onSubmitEditing={onNext ? handleSubmit : undefined}
+        inputAccessoryViewID={Platform.OS === 'ios' && onNext ? accId : undefined}
+        onFocus={() => { setFocused(true); setText(asText(value)) }}
+        onChangeText={handleChange}
+        onEndEditing={commit}
+        onBlur={commit}
+      />
+      {Platform.OS === 'ios' && onNext && (
+        <InputAccessoryView nativeID={accId}>
+          <View style={styles.accBar}>
+            <Pressable onPress={() => Keyboard.dismiss()} hitSlop={8}><Text style={styles.accDone}>Listo</Text></Pressable>
+            <Pressable onPress={handleSubmit} hitSlop={8}><Text style={styles.accNext}>{nextLabel}</Text></Pressable>
+          </View>
+        </InputAccessoryView>
+      )}
+    </>
   )
-}
+})
 
 export function Badge({ color = 'slate', children }) {
   const c = statusColor[color] || statusColor.slate
@@ -107,6 +127,29 @@ export function PickerModal({ visible, options, value, onSelect, onClose, title 
   )
 }
 
+// Botón de información (ⓘ) que abre una explicación breve en un modal.
+export function InfoButton({ title, text, size = 16 }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <Pressable onPress={() => setOpen(true)} hitSlop={8}>
+        <Icon name="info" size={size} color={colors.textFaint} />
+      </Pressable>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
+          <View style={styles.infoSheet}>
+            {title ? <Text style={styles.infoTitle}>{title}</Text> : null}
+            <Text style={styles.infoText}>{text}</Text>
+            <Pressable style={styles.infoBtn} onPress={() => setOpen(false)}>
+              <Text style={styles.infoBtnText}>Entendido</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+    </>
+  )
+}
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card, borderRadius: 18, padding: 16,
@@ -123,4 +166,12 @@ const styles = StyleSheet.create({
   modalTitle: { fontWeight: '700', color: colors.text, paddingHorizontal: 16, paddingVertical: 8 },
   modalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   modalRowText: { fontSize: 16, color: colors.text },
+  infoSheet: { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
+  infoTitle: { fontWeight: '800', color: colors.text, fontSize: 16, marginBottom: 8 },
+  infoText: { fontSize: 14, color: colors.textSoft, lineHeight: 21 },
+  infoBtn: { alignSelf: 'flex-end', marginTop: 16, backgroundColor: colors.brand, borderRadius: 10, paddingHorizontal: 18, paddingVertical: 9 },
+  infoBtnText: { color: '#fff', fontWeight: '700' },
+  accBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f1ebe0', paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.border },
+  accDone: { color: colors.textSoft, fontWeight: '600', fontSize: 15 },
+  accNext: { color: colors.brand, fontWeight: '800', fontSize: 15 },
 })
