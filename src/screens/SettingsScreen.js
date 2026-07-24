@@ -121,17 +121,17 @@ export default function SettingsScreen() {
         <Text style={styles.h2}>Copia de seguridad</Text>
         <Text style={styles.p}>Tus datos viven solo aquí. Descárgalos como archivo, compártelos o vuelve a importarlos.</Text>
         <View style={styles.btnRow}>
-          <Pressable style={styles.btnPrimary} onPress={doDownload}>
+          <Pressable style={[styles.btnPrimary, styles.btnFlex]} onPress={doDownload}>
             <Icon name="download" size={16} color="#fff" />
-            <Text style={styles.btnPrimaryText}>Descargar</Text>
+            <Text style={styles.btnPrimaryText} numberOfLines={1}>Descargar</Text>
           </Pressable>
-          <Pressable style={styles.btnGhost} onPress={doExport}>
+          <Pressable style={[styles.btnGhost, styles.btnFlex]} onPress={doExport}>
             <Icon name="share-2" size={16} color={colors.text} />
-            <Text style={styles.btnGhostText}>Compartir</Text>
+            <Text style={styles.btnGhostText} numberOfLines={1}>Compartir</Text>
           </Pressable>
-          <Pressable style={styles.btnGhost} onPress={doImport}>
+          <Pressable style={[styles.btnGhost, styles.btnFlex]} onPress={doImport}>
             <Icon name="upload" size={16} color={colors.text} />
-            <Text style={styles.btnGhostText}>Importar</Text>
+            <Text style={styles.btnGhostText} numberOfLines={1}>Importar</Text>
           </Pressable>
         </View>
       </Card>
@@ -175,10 +175,11 @@ const styles = StyleSheet.create({
   timeBtnText: { color: colors.text, fontWeight: '700', fontSize: 15 },
   toggleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, backgroundColor: colors.slate50, borderRadius: 12, padding: 12 },
   toggleTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
-  btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 6 },
-  btnPrimary: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.brand, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  btnRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  btnFlex: { flex: 1, justifyContent: 'center', paddingHorizontal: 8 },
+  btnPrimary: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.brand, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 11 },
   btnPrimaryText: { color: '#fff', fontWeight: '700' },
-  btnGhost: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  btnGhost: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 11 },
   btnGhostText: { color: colors.text, fontWeight: '700' },
   footer: { textAlign: 'center', fontSize: 12, color: colors.textFaint },
 })

@@ -4,6 +4,7 @@ import { SafeAreaView, View, Text, Pressable, ActivityIndicator, StyleSheet, Pla
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { StatusBar } from 'expo-status-bar'
 import { StoreProvider, useStore } from './src/lib/store.js'
+import { newId } from './src/lib/id.js'
 import CoursesScreen from './src/screens/CoursesScreen.js'
 import CourseDetailScreen from './src/screens/CourseDetailScreen.js'
 import ScheduleScreen from './src/screens/ScheduleScreen.js'
@@ -18,22 +19,45 @@ const TABS = [
   { id: 'config', label: 'Ajustes', icon: 'sliders' },
 ]
 
+// ¿El curso quedó "en blanco" (recién creado y sin tocar)?
+const isPristineCourse = (c) =>
+  c && (!c.name || c.name === 'Nuevo curso') && (c.evaluations?.length || 0) === 0 &&
+  !c.startDate && !c.endDate && !c.useOwnScale
+
 function Shell() {
   const { state, dispatch } = useStore()
   const [tab, setTab] = useState('cursos')
   const [openCourse, setOpenCourse] = useState(null)
+  const [newCourseId, setNewCourseId] = useState(null)
+
+  const createCourse = () => {
+    const id = newId()
+    dispatch({ type: 'ADD_COURSE', id })
+    setNewCourseId(id)
+    setOpenCourse(id)
+  }
+
+  // Cierra el detalle; si el curso era nuevo y quedó vacío, lo descarta.
+  const closeCourse = () => {
+    if (openCourse && openCourse === newCourseId) {
+      const c = state.courses.find((x) => x.id === openCourse)
+      if (isPristineCourse(c)) dispatch({ type: 'DELETE_COURSE', id: openCourse })
+    }
+    setNewCourseId(null)
+    setOpenCourse(null)
+  }
 
   // Botón físico "atrás" de Android: del detalle vuelve a la lista;
   // desde otra pestaña vuelve a Cursos; recién ahí deja salir de la app.
   useEffect(() => {
     const onBack = () => {
-      if (openCourse) { setOpenCourse(null); return true }
+      if (openCourse) { closeCourse(); return true }
       if (tab !== 'cursos') { setTab('cursos'); return true }
       return false
     }
     const sub = BackHandler.addEventListener('hardwareBackPress', onBack)
     return () => sub.remove()
-  }, [openCourse, tab])
+  }, [openCourse, tab, newCourseId, state.courses])
 
   if (!state.loaded) {
     return (
@@ -58,8 +82,8 @@ function Shell() {
       </View>
 
       <View style={styles.content}>
-        {tab === 'cursos' && !course && <CoursesScreen onOpen={setOpenCourse} />}
-        {tab === 'cursos' && course && <CourseDetailScreen course={course} onBack={() => setOpenCourse(null)} />}
+        {tab === 'cursos' && !course && <CoursesScreen onOpen={setOpenCourse} onCreate={createCourse} />}
+        {tab === 'cursos' && course && <CourseDetailScreen course={course} onBack={closeCourse} />}
         {tab === 'cronograma' && <ScheduleScreen onOpen={(id) => { setTab('cursos'); setOpenCourse(id) }} />}
         {tab === 'config' && <SettingsScreen />}
       </View>
@@ -69,7 +93,7 @@ function Shell() {
         {TABS.map((t) => {
           const active = tab === t.id
           return (
-            <Pressable key={t.id} style={styles.tab} onPress={() => { setTab(t.id); setOpenCourse(null) }}>
+            <Pressable key={t.id} style={styles.tab} onPress={() => { closeCourse(); setTab(t.id) }}>
               <Icon name={t.icon} size={20} color={active ? colors.brand : colors.textFaint} />
               <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.label}</Text>
             </Pressable>

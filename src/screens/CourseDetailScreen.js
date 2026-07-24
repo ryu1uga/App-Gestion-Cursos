@@ -96,12 +96,12 @@ export default function CourseDetailScreen({ course, onBack }) {
                 <Text style={styles.evalType}>{e.type}</Text>
                 <Icon name="chevron-down" size={13} color={colors.textSoft} />
               </Pressable>
-              <Pressable onPress={() => setDatePickerFor(e.id)} style={styles.dateChip} hitSlop={6}>
-                <Icon name="calendar" size={12} color={e.date ? colors.brand : colors.textFaint} />
-                {e.date ? <Text style={styles.dateChipText}>{shortDate(new Date(e.date))}</Text> : null}
-              </Pressable>
+              {e.date ? <Text style={styles.dateChipText}>{shortDate(new Date(e.date))}</Text> : null}
             </View>
           </View>
+          <Pressable onPress={() => setDatePickerFor(e.id)} style={styles.calCell} hitSlop={6}>
+            <Icon name="calendar" size={18} color={e.date ? colors.brand : colors.textFaint} />
+          </Pressable>
           <NumField ref={setRef(`${e.id}:week`)} style={[styles.cell, styles.wSem]} integer allowEmpty placeholder="—"
             value={e.week} onChangeNumber={(v) => patchEval(e.id, { week: v })}
             onNext={() => focusRef(`${e.id}:weight`)} />
@@ -233,6 +233,7 @@ export default function CourseDetailScreen({ course, onBack }) {
         <View style={styles.evalColsHead}>
           <View style={{ width: 22 }} />
           <Text style={[styles.colH, { flex: 1 }]}>Nombre / Tipo</Text>
+          <View style={styles.calCell}><Icon name="calendar" size={12} color={colors.textFaint} /></View>
           <Text style={[styles.colH, styles.wSem]}>Sem</Text>
           <Text style={[styles.colH, styles.wPeso]}>Peso%</Text>
           <Text style={[styles.colH, styles.wNota]}>Nota</Text>
@@ -356,8 +357,8 @@ const styles = StyleSheet.create({
   back: { color: colors.brand, fontWeight: '600' },
   typeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
   typeChip: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  dateChip: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   dateChipText: { fontSize: 11, color: colors.brand, fontWeight: '600' },
+  calCell: { width: 30, alignItems: 'center', justifyContent: 'center' },
   scaleLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
   rowCenter: { flexDirection: 'row', alignItems: 'center' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

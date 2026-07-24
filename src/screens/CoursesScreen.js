@@ -1,31 +1,20 @@
-import React from 'react'
-import { ScrollView, View, Text, Pressable, Alert, StyleSheet } from 'react-native'
+import React, { useState } from 'react'
+import { ScrollView, View, Text, Pressable, Modal, StyleSheet } from 'react-native'
 import { useStore } from '../lib/store.js'
-import { newId } from '../lib/id.js'
 import { analyzeCourse, effectiveScale, effectiveRound, fmtGrade, STATUS_META } from '../lib/calc.js'
 import { Card, Badge, Progress, Icon } from '../components/ui.js'
 import { colors } from '../theme.js'
 
-export default function CoursesScreen({ onOpen }) {
+export default function CoursesScreen({ onOpen, onCreate }) {
   const { state, dispatch } = useStore()
-
-  const createCourse = () => {
-    const id = newId()
-    dispatch({ type: 'ADD_COURSE', id })
-    onOpen(id) // entra directo al detalle para editar
-  }
-
-  const confirmDelete = (c) =>
-    Alert.alert('Eliminar curso', `¿Eliminar "${c.name}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => dispatch({ type: 'DELETE_COURSE', id: c.id }) },
-    ])
+  const [menuFor, setMenuFor] = useState(null) // curso con menú abierto
+  const menuCourse = state.courses.find((c) => c.id === menuFor)
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.row}>
         <Text style={styles.h2}>Mis cursos ({state.courses.length})</Text>
-        <Pressable style={styles.addBtn} onPress={createCourse}>
+        <Pressable style={styles.addBtn} onPress={onCreate}>
           <Text style={styles.addBtnText}>+ Nuevo</Text>
         </Pressable>
       </View>
@@ -49,7 +38,7 @@ export default function CoursesScreen({ onOpen }) {
                 </View>
                 <View style={styles.headRight}>
                   <Badge color={meta.color}>{meta.label}</Badge>
-                  <Pressable style={styles.moreBtn} hitSlop={8} onPress={() => confirmDelete(c)}>
+                  <Pressable style={styles.moreBtn} hitSlop={8} onPress={() => setMenuFor(c.id)}>
                     <Icon name="more-vertical" size={18} color={colors.textFaint} />
                   </Pressable>
                 </View>
@@ -74,6 +63,18 @@ export default function CoursesScreen({ onOpen }) {
           </Pressable>
         )
       })}
+
+      <Modal visible={menuFor != null} transparent animationType="fade" onRequestClose={() => setMenuFor(null)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setMenuFor(null)}>
+          <View style={styles.menuSheet}>
+            {menuCourse && <Text style={styles.menuTitle} numberOfLines={1}>{menuCourse.name}</Text>}
+            <Pressable style={styles.menuItem} onPress={() => { const id = menuFor; setMenuFor(null); dispatch({ type: 'DELETE_COURSE', id }) }}>
+              <Icon name="trash-2" size={17} color={colors.red} />
+              <Text style={styles.menuItemText}>Eliminar</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </ScrollView>
   )
 }
@@ -97,4 +98,9 @@ const styles = StyleSheet.create({
   gradeMax: { fontSize: 13, fontWeight: '400', color: colors.textFaint },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
   metaText: { fontSize: 12, color: colors.textSoft },
+  menuBackdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'center', paddingHorizontal: 48 },
+  menuSheet: { backgroundColor: '#fff', borderRadius: 16, paddingVertical: 6 },
+  menuTitle: { fontSize: 13, fontWeight: '700', color: colors.textFaint, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 14 },
+  menuItemText: { fontSize: 16, color: colors.red, fontWeight: '700' },
 })

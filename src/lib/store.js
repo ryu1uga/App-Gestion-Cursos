@@ -126,7 +126,11 @@ export function StoreProvider({ children }) {
 }
 
 // ---- Export / Import ----
-const backupName = () => `notaflow-${new Date().toISOString().slice(0, 10)}.json`
+const backupName = () => {
+  const d = new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  return `notaflow-${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}.json`
+}
 
 // Compartir (menú del sistema: WhatsApp, Drive, Guardar en Archivos, etc.)
 export async function exportJSON(state) {
