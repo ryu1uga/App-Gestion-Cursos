@@ -10,7 +10,7 @@ import * as DocumentPicker from 'expo-document-picker'
 import { newId, emptyState } from './id.js'
 import { rescheduleAll } from './notify.js'
 
-const KEY = 'gestion-cursos:v1'
+const KEY = 'notaflow:v1'
 
 const StoreCtx = createContext(null)
 export const useStore = () => useContext(StoreCtx)

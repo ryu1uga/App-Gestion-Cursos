@@ -4,3 +4,11 @@ dist/
 web-build/
 *.log
 .DS_Store
+
+# Credenciales de firma — NUNCA subir a git
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+credentials.json

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "NotaFlow",
-    "slug": "app-gestion-cursos",
+    "slug": "notaflow",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,30 +10,30 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#3355f5"
+      "backgroundColor": "#6d4a9c"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ryuichi.gestioncursos"
+      "bundleIdentifier": "com.ryuichi.notaflow"
     },
     "android": {
-      "package": "com.ryuichi.gestioncursos",
+      "package": "com.ryuichi.notaflow",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#3355f5"
+        "backgroundColor": "#6d4a9c"
       }
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "owner": "ryu1ulima",
     "extra": {
       "eas": {
-        "projectId": "8ce16f7e-158f-4978-b52f-051b588cd92e"
+        "projectId": "6d051d5b-09bc-42e7-b8e0-dc11704d91bf"
       }
-    },
-    "owner": "ryu1ulima"
+    }
   }
 }
