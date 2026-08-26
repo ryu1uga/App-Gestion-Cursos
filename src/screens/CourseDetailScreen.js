@@ -11,12 +11,8 @@ import { analyzeCourse, effectiveScale, effectiveRound, neededOnNext, fmtGrade, 
 import { evalEffectiveDate, weekFromDate, notifyFireAt } from '../lib/notify.js'
 import { Card, Badge, Progress, NumField, Icon, InfoButton } from '../components/ui.js'
 import { colors, palette, statusColor } from '../theme.js'
+import { TYPES, OTHER, MAX_TIPO, isCustomType } from '../lib/evalTypes.js'
 
-// Tipos fijos. Cualquier otro valor guardado en ev.type se trata como
-// personalizado (pastilla "Otro" + campo de texto), asi que los tipos
-// antiguos o importados nunca se pierden.
-const TYPES = ['Examen', 'Práctica', 'Proyecto', 'Portafolio', 'Investigación']
-const MAX_TIPO = 24
 
 const two = (n) => String(n).padStart(2, '0')
 const fmtDate = (d) => (d ? d.toLocaleDateString() : null)
@@ -302,7 +298,7 @@ export default function CourseDetailScreen({ course, onBack }) {
 function EvalSheet({ ev, course, asPercent, scale, onPatch, onSetDate, onClose, onDelete }) {
   const [showDate, setShowDate] = useState(false)
   const [focusOther, setFocusOther] = useState(false)
-  const isCustom = !TYPES.includes(ev.type)
+  const isCustom = isCustomType(ev.type)
   const refs = useRef({})
   const setRef = (k) => (r) => { if (r) refs.current[k] = r; else delete refs.current[k] }
   const focus = (k) => refs.current[k]?.focus?.()
@@ -311,7 +307,7 @@ function EvalSheet({ ev, course, asPercent, scale, onPatch, onSetDate, onClose, 
   // Si sale con el tipo libre vacio, se guarda "Otro" para que la
   // evaluacion nunca quede sin tipo.
   const close = () => {
-    if (!String(ev.type || '').trim()) onPatch({ type: 'Otro' })
+    if (!String(ev.type || '').trim()) onPatch({ type: OTHER })
     onClose()
   }
 
