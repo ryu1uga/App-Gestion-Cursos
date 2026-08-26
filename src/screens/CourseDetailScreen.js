@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { View, Text, TextInput, Pressable, Switch, Alert, Keyboard, StyleSheet } from 'react-native'
+import { View, Text, TextInput, Pressable, Switch, Alert, Keyboard, Modal, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import {
   NestableScrollContainer,
@@ -9,15 +9,20 @@ import {
 import { useStore } from '../lib/store.js'
 import { analyzeCourse, effectiveScale, effectiveRound, neededOnNext, fmtGrade, STATUS_META, decimalsFromStep } from '../lib/calc.js'
 import { evalEffectiveDate, weekFromDate, notifyFireAt } from '../lib/notify.js'
-import { Card, Badge, Progress, PickerModal, NumField, Icon, InfoButton } from '../components/ui.js'
+import { Card, Badge, Progress, NumField, Icon, InfoButton } from '../components/ui.js'
 import { colors, palette, statusColor } from '../theme.js'
 
-const TYPES = ['Examen', 'Proyecto', 'Práctica', 'Tarea', 'Exposición', 'Control', 'Evaluación', 'Otro']
+// Tipos fijos. Cualquier otro valor guardado en ev.type se trata como
+// personalizado (pastilla "Otro" + campo de texto), asi que los tipos
+// antiguos o importados nunca se pierden.
+const TYPES = ['Examen', 'Práctica', 'Proyecto', 'Portafolio', 'Investigación']
+const MAX_TIPO = 24
 
 const two = (n) => String(n).padStart(2, '0')
 const fmtDate = (d) => (d ? d.toLocaleDateString() : null)
 const fmtDateTime = (d) => `${d.toLocaleDateString()} a las ${two(d.getHours())}:${two(d.getMinutes())}`
-const shortDate = (d) => `${d.getDate()} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()]}`
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
+const fullDate = (d) => `${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`
 // Recorta ceros/decimales innecesarios para mostrar el peso
 const trimNum = (n) => String(Number(Number(n).toFixed(2)))
 
@@ -28,11 +33,7 @@ const STEP_INFO = {
 
 export default function CourseDetailScreen({ course, onBack }) {
   const { state, dispatch } = useStore()
-  const [picker, setPicker] = useState(null) // evalId con selector de tipo abierto
-  const [datePickerFor, setDatePickerFor] = useState(null) // evalId con calendario abierto
-  const inputRefs = useRef({})
-  const setRef = (key) => (r) => { if (r) inputRefs.current[key] = r; else delete inputRefs.current[key] }
-  const focusRef = (key) => inputRefs.current[key]?.focus?.()
+  const [editing, setEditing] = useState(null) // evalId con la hoja de edición abierta
 
   const scale = effectiveScale(course, state.settings)
   const round = effectiveRound(course, state.settings)
@@ -79,45 +80,37 @@ export default function CourseDetailScreen({ course, onBack }) {
 
   const renderEval = ({ item: e, drag, isActive }) => {
     const wPct = a.asPercent ? e.weight : (e.weight || 0) * 100
-    const gradeBg = e.grade == null ? colors.slate100 : e.grade >= scale.passing ? statusColor.emerald.bg : statusColor.red.bg
-    const gradeFg = e.grade == null ? colors.textFaint : e.grade >= scale.passing ? statusColor.emerald.fg : statusColor.red.fg
-    const idx = course.evaluations.findIndex((x) => x.id === e.id)
-    const nextItem = course.evaluations[idx + 1]
+    const done = e.grade != null
+    const passed = done && e.grade >= scale.passing
+    const barColor = !done ? colors.border : passed ? statusColor.emerald.fg : statusColor.red.fg
+    const gradeBg = !done ? colors.slate50 : passed ? statusColor.emerald.bg : statusColor.red.bg
+    const gradeFg = !done ? colors.textFaint : passed ? statusColor.emerald.fg : statusColor.red.fg
+    const metaLine = [e.type, e.week != null ? `Sem ${e.week}` : null, e.date ? fullDate(new Date(e.date)) : null]
+      .filter(Boolean).join('  ·  ')
     return (
       <ScaleDecorator>
-        <View style={[styles.evalRow, isActive && styles.evalRowActive]}>
+        <Pressable onPress={() => setEditing(e.id)} onLongPress={drag} delayLongPress={220}
+          style={[styles.evalRow, isActive && styles.evalRowActive]}>
           <Pressable onLongPress={drag} delayLongPress={120} style={styles.dragHandle} hitSlop={8}>
-            <Icon name="menu" size={18} color={colors.textFaint} />
+            <Icon name="menu" size={17} color={colors.textFaint} />
           </Pressable>
-          <View style={{ flex: 1, paddingRight: 6 }}>
-            <TextInput value={e.name} onChangeText={(t) => patchEval(e.id, { name: t })} style={styles.evalName} />
-            <View style={styles.typeRow}>
-              <Pressable onPress={() => setPicker(e.id)} style={styles.typeChip} hitSlop={6}>
-                <Text style={styles.evalType}>{e.type}</Text>
-                <Icon name="chevron-down" size={13} color={colors.textSoft} />
-              </Pressable>
-              {e.date ? <Text style={styles.dateChipText}>{shortDate(new Date(e.date))}</Text> : null}
-            </View>
+          <View style={[styles.statusBar, { backgroundColor: barColor }]} />
+          <View style={styles.evalMid}>
+            <Text style={styles.evalTitle} numberOfLines={1}>{e.name || 'Sin nombre'}</Text>
+            <Text style={styles.evalMeta} numberOfLines={1}>{metaLine}</Text>
           </View>
-          <Pressable onPress={() => setDatePickerFor(e.id)} style={styles.calCell} hitSlop={6}>
-            <Icon name="calendar" size={18} color={e.date ? colors.brand : colors.textFaint} />
-          </Pressable>
-          <NumField ref={setRef(`${e.id}:week`)} style={[styles.cell, styles.wSem]} integer allowEmpty placeholder="—"
-            value={e.week} onChangeNumber={(v) => patchEval(e.id, { week: v })}
-            onNext={() => focusRef(`${e.id}:weight`)} />
-          <NumField ref={setRef(`${e.id}:weight`)} style={[styles.cell, styles.wPeso]} value={wPct} format={trimNum}
-            onChangeNumber={(v) => patchEval(e.id, { weight: a.asPercent ? v : v / 100 })}
-            onNext={() => { if (nextItem) focusRef(`${nextItem.id}:week`); else Keyboard.dismiss() }} />
-          <NumField style={[styles.cell, styles.wNota, { backgroundColor: gradeBg, color: gradeFg, fontWeight: '700' }]}
-            value={e.grade} allowEmpty placeholder="pend."
-            onChangeNumber={(v) => patchEval(e.id, { grade: v })} />
-          <Pressable style={styles.delEval} hitSlop={6} onPress={() => dispatch({ type: 'DELETE_EVAL', courseId: course.id, evalId: e.id })}>
-            <Icon name="x" size={16} color={colors.textFaint} />
-          </Pressable>
-        </View>
+          <Text style={styles.evalWeight}>{trimNum(wPct)}%</Text>
+          <View style={[styles.gradeBox, { backgroundColor: gradeBg }, !done && styles.gradeBoxPend]}>
+            {done
+              ? <Text style={[styles.gradeText, { color: gradeFg }]}>{fmtGrade(e.grade, scale)}</Text>
+              : <Text style={styles.gradePendText}>pend</Text>}
+          </View>
+        </Pressable>
       </ScaleDecorator>
     )
   }
+
+  const editingEval = editing != null ? course.evaluations.find((x) => x.id === editing) : null
 
   return (
     <NestableScrollContainer contentContainerStyle={styles.container}>
@@ -229,19 +222,12 @@ export default function CourseDetailScreen({ course, onBack }) {
           <Text style={[styles.pesos, (pctSum > 100.5 || pctSum < 99.5) && { color: colors.amber, fontWeight: '700' }]}>Pesos: {Math.round(pctSum)}%</Text>
         </View>
 
-        {/* cabecera columnas */}
-        <View style={styles.evalColsHead}>
-          <View style={{ width: 22 }} />
-          <Text style={[styles.colH, { flex: 1 }]}>Nombre / Tipo</Text>
-          <View style={styles.calCell}><Icon name="calendar" size={12} color={colors.textFaint} /></View>
-          <Text style={[styles.colH, styles.wSem]}>Sem</Text>
-          <Text style={[styles.colH, styles.wPeso]}>Peso%</Text>
-          <Text style={[styles.colH, styles.wNota]}>Nota</Text>
-          <View style={{ width: 26 }} />
-        </View>
-
-        {course.evaluations.length > 1 && (
-          <Text style={styles.reorderHint}>Mantén pulsada el asa y arrastra para reordenar.</Text>
+        {course.evaluations.length > 0 && (
+          <Text style={styles.reorderHint}>
+            {course.evaluations.length > 1
+              ? 'Toca una evaluación para editarla · mantén pulsada el asa para reordenar'
+              : 'Toca la evaluación para editarla'}
+          </Text>
         )}
 
         <NestableDraggableFlatList
@@ -289,22 +275,135 @@ export default function CourseDetailScreen({ course, onBack }) {
         )}
       </Card>
 
-      <PickerModal visible={picker != null} title="Tipo de evaluación" options={TYPES}
-        value={course.evaluations.find((e) => e.id === picker)?.type}
-        onSelect={(t) => patchEval(picker, { type: t })} onClose={() => setPicker(null)} />
-
-      {datePickerFor != null && (
-        <DateTimePicker
-          value={(() => { const ev = course.evaluations.find((e) => e.id === datePickerFor); return ev?.date ? new Date(ev.date) : (course.startDate ? new Date(course.startDate) : new Date()) })()}
-          mode="date"
-          onChange={(event, selected) => {
-            const id = datePickerFor
-            setDatePickerFor(null)
-            if (event.type === 'set' && selected) setEvalDate(id, selected.toISOString())
+      {editingEval && (
+        <EvalSheet
+          ev={editingEval}
+          course={course}
+          asPercent={a.asPercent}
+          scale={scale}
+          onPatch={(patch) => patchEval(editingEval.id, patch)}
+          onSetDate={(iso) => setEvalDate(editingEval.id, iso)}
+          onClose={() => setEditing(null)}
+          onDelete={() => {
+            const id = editingEval.id
+            Alert.alert('Eliminar evaluación', `¿Eliminar "${editingEval.name || 'esta evaluación'}"?`, [
+              { text: 'Cancelar', style: 'cancel' },
+              { text: 'Eliminar', style: 'destructive', onPress: () => { setEditing(null); dispatch({ type: 'DELETE_EVAL', courseId: course.id, evalId: id }) } },
+            ])
           }}
         />
       )}
     </NestableScrollContainer>
+  )
+}
+
+// Hoja inferior con todos los campos de una evaluación. Los cambios se
+// guardan al instante en el store; el botón solo cierra.
+function EvalSheet({ ev, course, asPercent, scale, onPatch, onSetDate, onClose, onDelete }) {
+  const [showDate, setShowDate] = useState(false)
+  const [focusOther, setFocusOther] = useState(false)
+  const isCustom = !TYPES.includes(ev.type)
+  const refs = useRef({})
+  const setRef = (k) => (r) => { if (r) refs.current[k] = r; else delete refs.current[k] }
+  const focus = (k) => refs.current[k]?.focus?.()
+  const wPct = asPercent ? ev.weight : (ev.weight || 0) * 100
+
+  // Si sale con el tipo libre vacio, se guarda "Otro" para que la
+  // evaluacion nunca quede sin tipo.
+  const close = () => {
+    if (!String(ev.type || '').trim()) onPatch({ type: 'Otro' })
+    onClose()
+  }
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={close}>
+      <View style={styles.sheetRoot}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={close} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.sheet}>
+            <View style={styles.grab} />
+
+            <TextInput value={ev.name} onChangeText={(t) => onPatch({ name: t })} style={styles.sheetName}
+              placeholder="Nombre de la evaluación" placeholderTextColor={colors.textFaint} />
+
+            <Text style={styles.sheetLabel}>Tipo</Text>
+            <View style={[styles.typeGrid, isCustom && { marginBottom: 8 }]}>
+              {TYPES.map((t) => (
+                <Pressable key={t} onPress={() => { setFocusOther(false); onPatch({ type: t }) }}
+                  style={[styles.typePill, ev.type === t && styles.typePillOn]}>
+                  <Text style={[styles.typePillText, ev.type === t && styles.typePillTextOn]}>{t}</Text>
+                </Pressable>
+              ))}
+              <Pressable onPress={() => { if (!isCustom) onPatch({ type: '' }); setFocusOther(true) }}
+                style={[styles.typePill, isCustom && styles.typePillOn]}>
+                <Text style={[styles.typePillText, isCustom && styles.typePillTextOn]}>Otro…</Text>
+              </Pressable>
+            </View>
+            {isCustom && (
+              <TextInput value={ev.type} onChangeText={(t) => onPatch({ type: t })}
+                style={styles.otherInput} placeholder="¿Cómo se llama este tipo?"
+                placeholderTextColor={colors.textFaint} maxLength={MAX_TIPO}
+                autoFocus={focusOther} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} />
+            )}
+
+            <Text style={styles.sheetLabel}>Fecha</Text>
+            <View style={styles.rowCenter}>
+              <Pressable style={styles.sheetDateBtn} onPress={() => setShowDate(true)}>
+                <Icon name="calendar" size={15} color={ev.date ? colors.brand : colors.textFaint} />
+                <Text style={[styles.sheetDateText, !ev.date && { color: colors.textFaint, fontWeight: '500' }]}>
+                  {ev.date ? fullDate(new Date(ev.date)) : 'Sin fecha'}
+                </Text>
+              </Pressable>
+              {ev.date ? (
+                <Pressable style={styles.sheetDateClear} hitSlop={8} onPress={() => onPatch({ date: null })}>
+                  <Icon name="x" size={15} color={colors.textFaint} />
+                </Pressable>
+              ) : null}
+            </View>
+
+            <View style={styles.sheetRow}>
+              <View style={styles.sheetField}>
+                <Text style={styles.sheetLabel}>Semana</Text>
+                <NumField ref={setRef('week')} style={styles.sheetInput} integer allowEmpty placeholder="—"
+                  value={ev.week} onChangeNumber={(v) => onPatch({ week: v })} onNext={() => focus('weight')} />
+              </View>
+              <View style={styles.sheetField}>
+                <Text style={styles.sheetLabel}>Peso %</Text>
+                <NumField ref={setRef('weight')} style={styles.sheetInput} value={wPct} format={trimNum}
+                  onChangeNumber={(v) => onPatch({ weight: asPercent ? v : v / 100 })} onNext={() => focus('grade')} />
+              </View>
+              <View style={styles.sheetField}>
+                <Text style={styles.sheetLabel}>Nota</Text>
+                <NumField ref={setRef('grade')} style={styles.sheetInput} allowEmpty placeholder="pend."
+                  value={ev.grade} onChangeNumber={(v) => onPatch({ grade: v })} onNext={() => Keyboard.dismiss()} />
+              </View>
+            </View>
+            <Text style={styles.sheetHint}>Escala {scale.min}–{scale.max}, aprueba con {scale.passing}.</Text>
+
+            <View style={styles.sheetBtns}>
+              <Pressable style={styles.sheetDel} onPress={onDelete}>
+                <Icon name="trash-2" size={15} color={colors.red} />
+                <Text style={styles.sheetDelText}>Eliminar</Text>
+              </Pressable>
+              <Pressable style={styles.sheetOk} onPress={close}>
+                <Text style={styles.sheetOkText}>Listo</Text>
+              </Pressable>
+            </View>
+
+            {showDate && (
+              <DateTimePicker
+                value={ev.date ? new Date(ev.date) : (course.startDate ? new Date(course.startDate) : new Date())}
+                mode="date"
+                onChange={(event, selected) => {
+                  setShowDate(false)
+                  if (event.type === 'set' && selected) onSetDate(selected.toISOString())
+                }}
+              />
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
   )
 }
 
@@ -355,10 +454,6 @@ const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 40 },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
   back: { color: colors.brand, fontWeight: '600' },
-  typeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
-  typeChip: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  dateChipText: { fontSize: 11, color: colors.brand, fontWeight: '600' },
-  calCell: { width: 30, alignItems: 'center', justifyContent: 'center' },
   scaleLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
   rowCenter: { flexDirection: 'row', alignItems: 'center' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -392,20 +487,45 @@ const styles = StyleSheet.create({
   evalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
   pesos: { fontSize: 12, color: colors.textFaint },
-  reorderHint: { fontSize: 11, color: colors.textFaint, marginBottom: 4 },
-  evalColsHead: { flexDirection: 'row', alignItems: 'center', paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: colors.slate100 },
-  colH: { fontSize: 10, color: colors.textFaint, fontWeight: '600', textTransform: 'uppercase' },
-  wSem: { width: 42, textAlign: 'center' },
-  wPeso: { width: 52, textAlign: 'center' },
-  wNota: { width: 56, textAlign: 'center' },
-  evalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.slate50, backgroundColor: colors.card },
-  evalRowActive: { backgroundColor: colors.slate50, borderRadius: 10 },
-  dragHandle: { width: 22, alignItems: 'center', justifyContent: 'center' },
-  dragHandleText: { color: colors.textFaint, fontSize: 18, fontWeight: '700' },
-  evalName: { fontSize: 14, color: colors.text, padding: 2, fontWeight: '600' },
-  evalType: { fontSize: 12, color: colors.textSoft, paddingHorizontal: 2, marginTop: 2 },
-  cell: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingVertical: 6, marginHorizontal: 2, color: colors.text, fontSize: 13, textAlign: 'center' },
-  delEval: { width: 26, alignItems: 'center' },
+  reorderHint: { fontSize: 11, color: colors.textFaint, marginBottom: 8, lineHeight: 15 },
+  // --- fila de lectura ---
+  evalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.slate50, backgroundColor: colors.card },
+  evalRowActive: { backgroundColor: colors.slate50, borderRadius: 12 },
+  dragHandle: { width: 20, alignItems: 'center', justifyContent: 'center' },
+  statusBar: { width: 3, alignSelf: 'stretch', borderRadius: 2, opacity: 0.8 },
+  evalMid: { flex: 1, minWidth: 0 },
+  evalTitle: { fontSize: 14.5, fontWeight: '700', color: colors.text },
+  evalMeta: { fontSize: 11.5, color: colors.textSoft, marginTop: 3 },
+  evalWeight: { fontSize: 11.5, color: colors.textFaint, fontWeight: '600' },
+  gradeBox: { minWidth: 52, paddingHorizontal: 6, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  gradeBoxPend: { borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border },
+  gradeText: { fontSize: 17, fontWeight: '800' },
+  gradePendText: { fontSize: 10, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.4 },
+
+  // --- hoja de edición ---
+  sheetRoot: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 28 },
+  grab: { width: 38, height: 4, borderRadius: 2, backgroundColor: colors.slate100, alignSelf: 'center', marginBottom: 14 },
+  sheetName: { fontSize: 17, fontWeight: '800', color: colors.text, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 6, marginBottom: 14 },
+  sheetLabel: { fontSize: 10, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+  typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 16 },
+  typePill: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.slate50, borderWidth: 1, borderColor: colors.border },
+  typePillOn: { backgroundColor: colors.brandLight, borderColor: colors.brand },
+  typePillText: { fontSize: 12.5, color: colors.textSoft, fontWeight: '600' },
+  typePillTextOn: { color: colors.brandDark, fontWeight: '800' },
+  otherInput: { borderWidth: 1, borderColor: colors.brand, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.text, backgroundColor: colors.card, marginBottom: 16 },
+  sheetDateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 },
+  sheetDateText: { fontSize: 14, color: colors.brand, fontWeight: '700' },
+  sheetDateClear: { width: 34, alignItems: 'center' },
+  sheetRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  sheetField: { flex: 1 },
+  sheetInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 8, fontSize: 15, color: colors.text, textAlign: 'center', backgroundColor: colors.card },
+  sheetHint: { fontSize: 11, color: colors.textFaint, marginTop: 8 },
+  sheetBtns: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 },
+  sheetDel: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
+  sheetDelText: { color: colors.red, fontWeight: '700', fontSize: 14 },
+  sheetOk: { flex: 1, alignItems: 'center', paddingVertical: 13, borderRadius: 12, backgroundColor: colors.brand },
+  sheetOkText: { color: '#fff', fontWeight: '800', fontSize: 15 },
   addEval: { marginTop: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   addEvalText: { color: colors.brand, fontWeight: '600' },
   switchLabel: { fontSize: 13, color: colors.textSoft, marginRight: 6 },
