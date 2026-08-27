@@ -9,6 +9,7 @@ import * as Sharing from 'expo-sharing'
 import * as DocumentPicker from 'expo-document-picker'
 import { newId, emptyState } from './id.js'
 import { rescheduleAll } from './notify.js'
+import { DEFAULT_SESSION } from './classes.js'
 
 const KEY = 'notaflow:v1'
 
@@ -28,9 +29,9 @@ function reducer(state, action) {
         courses: [
           ...state.courses,
           {
-            id: action.id || newId(), name: action.name || 'Nuevo curso', color: action.color || '#3355f5',
+            id: action.id || newId(), name: action.name || 'Nuevo curso', color: action.color || '#6d4a9c',
             useOwnScale: false, scale: { ...state.settings.defaultScale },
-            startDate: null, endDate: null, roundFinal: null, evaluations: [],
+            startDate: null, endDate: null, roundFinal: null, evaluations: [], sessions: [],
           },
         ],
       }
@@ -82,6 +83,37 @@ function reducer(state, action) {
         ...state,
         courses: state.courses.map((c) =>
           c.id === action.courseId ? { ...c, evaluations: action.evaluations } : c,
+        ),
+      }
+
+    // ---- Bloques de clase (horario semanal del curso) ----
+    case 'ADD_SESSION':
+      return {
+        ...state,
+        courses: state.courses.map((c) =>
+          c.id === action.courseId
+            ? { ...c, sessions: [...(c.sessions ?? []), { ...DEFAULT_SESSION, ...(action.session || {}), id: newId() }] }
+            : c,
+        ),
+      }
+
+    case 'UPDATE_SESSION':
+      return {
+        ...state,
+        courses: state.courses.map((c) =>
+          c.id === action.courseId
+            ? { ...c, sessions: (c.sessions ?? []).map((s) => (s.id === action.sessionId ? { ...s, ...action.patch } : s)) }
+            : c,
+        ),
+      }
+
+    case 'DELETE_SESSION':
+      return {
+        ...state,
+        courses: state.courses.map((c) =>
+          c.id === action.courseId
+            ? { ...c, sessions: (c.sessions ?? []).filter((s) => s.id !== action.sessionId) }
+            : c,
         ),
       }
 

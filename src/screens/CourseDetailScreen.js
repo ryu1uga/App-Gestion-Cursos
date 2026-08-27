@@ -12,6 +12,10 @@ import { evalEffectiveDate, weekFromDate, notifyFireAt } from '../lib/notify.js'
 import { Card, Badge, Progress, NumField, Icon, InfoButton } from '../components/ui.js'
 import { colors, palette, statusColor } from '../theme.js'
 import { TYPES, OTHER, MAX_TIPO, isCustomType } from '../lib/evalTypes.js'
+import {
+  WEEK_ORDER, dayName, MODES, MODE_LABEL, BLOCK_LABELS, MAX_LABEL, MAX_ROOM,
+  minutesOf, fmtTime, weeklyMinutes, isVirtual,
+} from '../lib/classes.js'
 
 
 const two = (n) => String(n).padStart(2, '0')
@@ -22,6 +26,22 @@ const fullDate = (d) => `${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()
 // Recorta ceros/decimales innecesarios para mostrar el peso
 const trimNum = (n) => String(Number(Number(n).toFixed(2)))
 
+// "3 h 20 min" a partir de minutos sueltos.
+const fmtDuration = (mins) => {
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return [h ? `${h} h` : null, m ? `${m} min` : null].filter(Boolean).join(' ') || '0 min'
+}
+
+// 'HH:MM' -> Date de hoy a esa hora (lo que espera el selector de hora).
+const timeToDate = (hhmm) => {
+  const mins = minutesOf(hhmm)
+  const d = new Date()
+  d.setHours(mins == null ? 8 : Math.floor(mins / 60), mins == null ? 0 : mins % 60, 0, 0)
+  return d
+}
+const dateToTime = (d) => `${two(d.getHours())}:${two(d.getMinutes())}`
+
 const STEP_INFO = {
   title: 'Paso de la nota',
   text: 'Define a qué valores se ajusta (redondea) la nota final:\n\n• 1 → notas enteras (…, 10, 11, 12)\n• 0.5 → medios puntos (10, 10.5, 11)\n• 0.25 → cuartos (10, 10.25, 10.5)\n• 0.1 → un decimal (10.0, 10.1, 10.2)\n\nElige el que use tu facultad para calcular la nota final.',
@@ -30,6 +50,7 @@ const STEP_INFO = {
 export default function CourseDetailScreen({ course, onBack }) {
   const { state, dispatch } = useStore()
   const [editing, setEditing] = useState(null) // evalId con la hoja de edición abierta
+  const [editingClass, setEditingClass] = useState(null) // id del bloque de clase abierto
 
   const scale = effectiveScale(course, state.settings)
   const round = effectiveRound(course, state.settings)
@@ -40,6 +61,35 @@ export default function CourseDetailScreen({ course, onBack }) {
 
   const patchCourse = (patch) => dispatch({ type: 'UPDATE_COURSE', id: course.id, patch })
   const patchEval = (evalId, patch) => dispatch({ type: 'UPDATE_EVAL', courseId: course.id, evalId, patch })
+
+  const patchSession = (sessionId, patch) => dispatch({ type: 'UPDATE_SESSION', courseId: course.id, sessionId, patch })
+
+  // Las clases se listan de lunes a domingo. Se ordena de forma tolerante:
+  // una hora a medio llenar no puede hacer desaparecer la fila.
+  const sessions = [...(course.sessions ?? [])].sort((a, b) => {
+    const da = WEEK_ORDER.indexOf(a.day)
+    const db = WEEK_ORDER.indexOf(b.day)
+    if (da !== db) return da - db
+    return (minutesOf(a.start) ?? 0) - (minutesOf(b.start) ?? 0)
+  })
+  const semanales = weeklyMinutes(course)
+
+  // Al mover la hora de inicio, la clase conserva su duración.
+  const setStart = (s, v) => {
+    const antes = minutesOf(s.start)
+    const fin = minutesOf(s.end)
+    const nuevo = minutesOf(v)
+    if (nuevo == null || antes == null || fin == null || fin <= antes) return patchSession(s.id, { start: v })
+    patchSession(s.id, { start: v, end: fmtTime(nuevo + (fin - antes)) })
+  }
+
+  // La hora de fin nunca puede quedar antes del inicio.
+  const setEnd = (s, v) => {
+    const ini = minutesOf(s.start)
+    const nuevo = minutesOf(v)
+    if (nuevo != null && ini != null && nuevo <= ini) return patchSession(s.id, { end: fmtTime(ini + 30) })
+    patchSession(s.id, { end: v })
+  }
 
   // Fija la fecha exacta de una evaluación y, si hay fecha de inicio, calcula la semana.
   const setEvalDate = (evalId, iso) => {
@@ -107,6 +157,7 @@ export default function CourseDetailScreen({ course, onBack }) {
   }
 
   const editingEval = editing != null ? course.evaluations.find((x) => x.id === editing) : null
+  const editingSession = editingClass != null ? sessions.find((x) => x.id === editingClass) : null
 
   return (
     <NestableScrollContainer contentContainerStyle={styles.container}>
@@ -239,6 +290,46 @@ export default function CourseDetailScreen({ course, onBack }) {
         </Pressable>
       </Card>
 
+      {/* Clases (horario semanal) */}
+      <Card style={{ marginBottom: 12 }}>
+        <View style={styles.evalHead}>
+          <Text style={styles.sectionTitle}>Clases</Text>
+          {sessions.length > 0 && <Text style={styles.pesos}>{fmtDuration(semanales)} a la semana</Text>}
+        </View>
+        <Text style={styles.reorderHint}>
+          Los días y horas en que te toca este curso. Salen todos juntos en la pestaña Horario.
+        </Text>
+
+        {sessions.map((s) => {
+          const incompleta = minutesOf(s.start) == null || minutesOf(s.end) == null
+          return (
+            <Pressable key={s.id} style={styles.classRow} onPress={() => setEditingClass(s.id)}>
+              <Text style={styles.classDay}>{dayName(s.day)}</Text>
+              <View style={[
+                styles.classBar,
+                { borderColor: course.color, backgroundColor: isVirtual(s) ? 'transparent' : course.color },
+                isVirtual(s) && styles.classBarVirtual,
+              ]} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[styles.classTime, incompleta && { color: colors.amber }]}>
+                  {incompleta ? 'Falta la hora' : `${s.start} – ${s.end}`}
+                </Text>
+                <Text style={styles.classMeta} numberOfLines={1}>
+                  {[s.label, s.room].filter(Boolean).join('  ·  ') || 'Sin aula'}
+                </Text>
+              </View>
+              <View style={styles.classTag}>
+                <Text style={styles.classTagText}>{MODE_LABEL[s.mode] || MODE_LABEL.presencial}</Text>
+              </View>
+            </Pressable>
+          )
+        })}
+
+        <Pressable style={styles.addEval} onPress={() => dispatch({ type: 'ADD_SESSION', courseId: course.id })}>
+          <Text style={styles.addEvalText}>+ Agregar clase</Text>
+        </Pressable>
+      </Card>
+
       {/* Escala del curso */}
       <Card style={{ marginBottom: 24 }}>
         <View style={styles.rowBetween}>
@@ -267,7 +358,7 @@ export default function CourseDetailScreen({ course, onBack }) {
             </View>
           </>
         ) : (
-          <Text style={styles.hintSmall}>Usa la escala global (0–{scale.max}, aprueba con {scale.passing}). Actívala para darle a este curso su escala y su redondeo.</Text>
+          <Text style={styles.hintSmall}>Usa la escala global ({scale.min}–{scale.max}, aprueba con {scale.passing}). Actívala para darle a este curso su escala y su redondeo.</Text>
         )}
       </Card>
 
@@ -289,7 +380,126 @@ export default function CourseDetailScreen({ course, onBack }) {
           }}
         />
       )}
+      {editingSession && (
+        <ClassSheet
+          s={editingSession}
+          onPatch={(patch) => patchSession(editingSession.id, patch)}
+          onSetStart={(v) => setStart(editingSession, v)}
+          onSetEnd={(v) => setEnd(editingSession, v)}
+          onClose={() => setEditingClass(null)}
+          onDelete={() => {
+            const id = editingSession.id
+            Alert.alert('Eliminar clase', '¿Quitar este bloque del horario?', [
+              { text: 'Cancelar', style: 'cancel' },
+              { text: 'Eliminar', style: 'destructive', onPress: () => { setEditingClass(null); dispatch({ type: 'DELETE_SESSION', courseId: course.id, sessionId: id }) } },
+            ])
+          }}
+        />
+      )}
     </NestableScrollContainer>
+  )
+}
+
+// Hoja inferior de un bloque de clase. Como la de evaluaciones, guarda al
+// instante en el store; el botón solo cierra.
+function ClassSheet({ s, onPatch, onSetStart, onSetEnd, onClose, onDelete }) {
+  const [picking, setPicking] = useState(null) // 'start' | 'end'
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.sheetRoot}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.sheet}>
+            <View style={styles.grab} />
+
+            <Text style={styles.sheetLabel}>Día</Text>
+            <View style={styles.typeGrid}>
+              {WEEK_ORDER.map((d) => (
+                <Pressable key={d} onPress={() => onPatch({ day: d })}
+                  style={[styles.typePill, s.day === d && styles.typePillOn]}>
+                  <Text style={[styles.typePillText, s.day === d && styles.typePillTextOn]}>{dayName(d)}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.sheetRow}>
+              <View style={styles.sheetField}>
+                <Text style={styles.sheetLabel}>Inicio</Text>
+                <Pressable style={styles.sheetDateBtn} onPress={() => setPicking('start')}>
+                  <Icon name="clock" size={15} color={colors.brand} />
+                  <Text style={styles.sheetDateText}>{s.start || '--:--'}</Text>
+                </Pressable>
+              </View>
+              <View style={styles.sheetField}>
+                <Text style={styles.sheetLabel}>Fin</Text>
+                <Pressable style={styles.sheetDateBtn} onPress={() => setPicking('end')}>
+                  <Icon name="clock" size={15} color={colors.brand} />
+                  <Text style={styles.sheetDateText}>{s.end || '--:--'}</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={{ marginTop: 16 }}>
+              <Text style={styles.sheetLabel}>Modalidad</Text>
+              <View style={styles.typeGrid}>
+                {MODES.map((m) => (
+                  <Pressable key={m} onPress={() => onPatch({ mode: m })}
+                    style={[styles.typePill, s.mode === m && styles.typePillOn]}>
+                    <Text style={[styles.typePillText, s.mode === m && styles.typePillTextOn]}>{MODE_LABEL[m]}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <Text style={styles.sheetLabel}>Bloque</Text>
+            <View style={styles.typeGrid}>
+              {BLOCK_LABELS.map((l) => (
+                <Pressable key={l} onPress={() => onPatch({ label: s.label === l ? '' : l })}
+                  style={[styles.typePill, s.label === l && styles.typePillOn]}>
+                  <Text style={[styles.typePillText, s.label === l && styles.typePillTextOn]}>{l}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <TextInput value={s.label || ''} onChangeText={(v) => onPatch({ label: v })}
+              style={styles.otherInput} placeholder="O escríbelo tú" placeholderTextColor={colors.textFaint}
+              maxLength={MAX_LABEL} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} />
+
+            <Text style={styles.sheetLabel}>Aula</Text>
+            <TextInput value={s.room || ''} onChangeText={(v) => onPatch({ room: v })}
+              style={styles.otherInput} maxLength={MAX_ROOM}
+              placeholder={s.mode === 'virtual' ? 'Sala, plataforma…' : 'B-204'}
+              placeholderTextColor={colors.textFaint} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} />
+
+            <View style={styles.sheetBtns}>
+              <Pressable style={styles.sheetDel} onPress={onDelete}>
+                <Icon name="trash-2" size={15} color={colors.red} />
+                <Text style={styles.sheetDelText}>Eliminar</Text>
+              </Pressable>
+              <Pressable style={styles.sheetOk} onPress={onClose}>
+                <Text style={styles.sheetOkText}>Listo</Text>
+              </Pressable>
+            </View>
+
+            {picking && (
+              <DateTimePicker
+                mode="time"
+                is24Hour
+                value={timeToDate(picking === 'start' ? s.start : s.end)}
+                onChange={(event, sel) => {
+                  const cual = picking
+                  setPicking(null)
+                  if (event.type === 'set' && sel) {
+                    const v = dateToTime(sel)
+                    if (cual === 'start') onSetStart(v); else onSetEnd(v)
+                  }
+                }}
+              />
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
   )
 }
 
@@ -453,11 +663,11 @@ const styles = StyleSheet.create({
   scaleLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
   rowCenter: { flexDirection: 'row', alignItems: 'center' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  nameInput: { flex: 1, fontSize: 18, fontWeight: '800', color: '#0f172a', padding: 4 },
+  nameInput: { flex: 1, fontSize: 18, fontWeight: '800', color: colors.text, padding: 4 },
   iconBtn: { padding: 6 },
   paletteRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   swatch: { width: 26, height: 26, borderRadius: 13 },
-  swatchActive: { borderWidth: 3, borderColor: '#0f172a' },
+  swatchActive: { borderWidth: 3, borderColor: colors.text },
   datesRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   datesHint: { fontSize: 12, color: colors.textSoft, marginTop: 8 },
   dateField: { flex: 1 },
@@ -499,7 +709,7 @@ const styles = StyleSheet.create({
   gradePendText: { fontSize: 10, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.4 },
 
   // --- hoja de edición ---
-  sheetRoot: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'flex-end' },
+  sheetRoot: { flex: 1, backgroundColor: 'rgba(51,45,42,0.42)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 28 },
   grab: { width: 38, height: 4, borderRadius: 2, backgroundColor: colors.slate100, alignSelf: 'center', marginBottom: 14 },
   sheetName: { fontSize: 17, fontWeight: '800', color: colors.text, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 6, marginBottom: 14 },
@@ -531,4 +741,14 @@ const styles = StyleSheet.create({
   scaleField: { flexGrow: 1, minWidth: 70 },
   scaleLabel: { fontSize: 11, color: colors.textSoft, marginBottom: 4 },
   scaleInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 8, textAlign: 'center', color: colors.text },
+
+  // --- clases del horario ---
+  classRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderTopWidth: 1, borderTopColor: colors.slate50 },
+  classDay: { width: 34, fontSize: 12.5, fontWeight: '800', color: colors.text },
+  classBar: { width: 4, alignSelf: 'stretch', borderRadius: 3, borderWidth: 1.5 },
+  classBarVirtual: { borderStyle: 'dashed' },
+  classTime: { fontSize: 14, fontWeight: '700', color: colors.text },
+  classMeta: { fontSize: 11.5, color: colors.textSoft, marginTop: 2 },
+  classTag: { backgroundColor: colors.slate100, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  classTagText: { fontSize: 10.5, fontWeight: '700', color: colors.textSoft },
 })

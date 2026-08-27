@@ -8,6 +8,7 @@ import { newId } from './src/lib/id.js'
 import CoursesScreen from './src/screens/CoursesScreen.js'
 import CourseDetailScreen from './src/screens/CourseDetailScreen.js'
 import ScheduleScreen from './src/screens/ScheduleScreen.js'
+import TimetableScreen from './src/screens/TimetableScreen.js'
 import SettingsScreen from './src/screens/SettingsScreen.js'
 import Onboarding from './src/components/Onboarding.js'
 import { Icon } from './src/components/ui.js'
@@ -16,6 +17,7 @@ import { colors } from './src/theme.js'
 const TABS = [
   { id: 'cursos', label: 'Cursos', icon: 'book-open' },
   { id: 'cronograma', label: 'Cronograma', icon: 'calendar' },
+  { id: 'horario', label: 'Horario', icon: 'clock' },
   { id: 'config', label: 'Ajustes', icon: 'sliders' },
 ]
 
@@ -85,6 +87,7 @@ function Shell() {
         {tab === 'cursos' && !course && <CoursesScreen onOpen={setOpenCourse} onCreate={createCourse} />}
         {tab === 'cursos' && course && <CourseDetailScreen course={course} onBack={closeCourse} />}
         {tab === 'cronograma' && <ScheduleScreen onOpen={(id) => { setTab('cursos'); setOpenCourse(id) }} />}
+        {tab === 'horario' && <TimetableScreen onOpen={(id) => { setTab('cursos'); setOpenCourse(id) }} />}
         {tab === 'config' && <SettingsScreen />}
       </View>
 
@@ -122,11 +125,11 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
-  title: { fontSize: 24, fontWeight: '800', color: '#0f172a' },
+  title: { fontSize: 24, fontWeight: '800', color: colors.text },
   subtitle: { fontSize: 13, color: colors.textSoft, marginTop: 2 },
   content: { flex: 1 },
   tabbar: {
-    flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: colors.border,
+    flexDirection: 'row', backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border,
     paddingBottom: Platform.OS === 'ios' ? 20 : 8, paddingTop: 8,
   },
   tab: { flex: 1, alignItems: 'center', gap: 2 },

@@ -1,6 +1,11 @@
 // ============================================================
 //  Lógica de cálculo de notas ponderadas
 //  Todo es puro (sin estado) para poder testearlo fácilmente.
+//
+//  IMPORTANTE: este archivo es idéntico en las dos apps
+//    Notaflow-App/src/lib/calc.js
+//    Notaflow-Desktop/renderer/src/lib/calc.js
+//  Si cambias algo aquí, copia el archivo al otro repo.
 // ============================================================
 
 // Redondea a un paso dado (ej. step=1 -> enteros, step=0.1 -> 1 decimal)

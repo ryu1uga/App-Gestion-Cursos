@@ -1,6 +1,12 @@
 // Paleta y tokens de estilo compartidos
 // Concepto: papel cálido + tinta morada. Se aleja del gris slate + azul
 // índigo por defecto para tener identidad propia.
+//
+// IMPORTANTE: este archivo es idéntico en las dos apps
+//   Notaflow-App/src/theme.js
+//   Notaflow-Desktop/renderer/src/theme.js
+// Si cambias algo aquí, copia el archivo al otro repo.
+
 export const colors = {
   brand: '#6d4a9c',       // morado tinta
   brandDark: '#4f3676',

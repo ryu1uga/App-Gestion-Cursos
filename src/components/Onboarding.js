@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: 32,
   },
   icon: { fontSize: 56 },
-  title: { fontSize: 24, fontWeight: '800', color: '#0f172a', textAlign: 'center', marginBottom: 14 },
+  title: { fontSize: 24, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 14 },
   body: { fontSize: 16, color: colors.textSoft, textAlign: 'center', lineHeight: 24 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 20 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
