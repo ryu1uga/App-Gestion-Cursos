@@ -307,7 +307,7 @@ export default function CourseDetailScreen({ course, onBack }) {
               <Text style={styles.classDay}>{dayName(s.day)}</Text>
               <View style={[
                 styles.classBar,
-                { borderColor: course.color, backgroundColor: isVirtual(s) ? 'transparent' : course.color },
+                { backgroundColor: course.color },
                 isVirtual(s) && styles.classBarVirtual,
               ]} />
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -315,7 +315,7 @@ export default function CourseDetailScreen({ course, onBack }) {
                   {incompleta ? 'Falta la hora' : `${s.start} – ${s.end}`}
                 </Text>
                 <Text style={styles.classMeta} numberOfLines={1}>
-                  {[s.label, s.room].filter(Boolean).join('  ·  ') || 'Sin aula'}
+                  {[s.label, s.room].filter(Boolean).join('  ·  ') || (isVirtual(s) ? 'Sin sala' : 'Sin aula')}
                 </Text>
               </View>
               <View style={styles.classTag}>
@@ -426,14 +426,14 @@ function ClassSheet({ s, onPatch, onSetStart, onSetEnd, onClose, onDelete }) {
             <View style={styles.sheetRow}>
               <View style={styles.sheetField}>
                 <Text style={styles.sheetLabel}>Inicio</Text>
-                <Pressable style={styles.sheetDateBtn} onPress={() => setPicking('start')}>
+                <Pressable style={styles.sheetTimeBtn} onPress={() => setPicking('start')}>
                   <Icon name="clock" size={15} color={colors.brand} />
                   <Text style={styles.sheetDateText}>{s.start || '--:--'}</Text>
                 </Pressable>
               </View>
               <View style={styles.sheetField}>
                 <Text style={styles.sheetLabel}>Fin</Text>
-                <Pressable style={styles.sheetDateBtn} onPress={() => setPicking('end')}>
+                <Pressable style={styles.sheetTimeBtn} onPress={() => setPicking('end')}>
                   <Icon name="clock" size={15} color={colors.brand} />
                   <Text style={styles.sheetDateText}>{s.end || '--:--'}</Text>
                 </Pressable>
@@ -722,6 +722,14 @@ const styles = StyleSheet.create({
   otherInput: { borderWidth: 1, borderColor: colors.brand, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.text, backgroundColor: colors.card, marginBottom: 16 },
   sheetDateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 },
   sheetDateText: { fontSize: 14, color: colors.brand, fontWeight: '700' },
+  // Igual que sheetDateBtn pero SIN flex: 1. El de fecha vive en una fila,
+  // donde flex:1 reparte ancho; el de hora vive en una columna (sheetField),
+  // donde flex:1 vale flexBasis 0 y aplasta el botón hasta ocultar la hora.
+  sheetTimeBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1, borderColor: colors.border, borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 11,
+  },
   sheetDateClear: { width: 34, alignItems: 'center' },
   sheetRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
   sheetField: { flex: 1 },
@@ -745,8 +753,10 @@ const styles = StyleSheet.create({
   // --- clases del horario ---
   classRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderTopWidth: 1, borderTopColor: colors.slate50 },
   classDay: { width: 34, fontSize: 12.5, fontWeight: '800', color: colors.text },
-  classBar: { width: 4, alignSelf: 'stretch', borderRadius: 3, borderWidth: 1.5 },
-  classBarVirtual: { borderStyle: 'dashed' },
+  classBar: { width: 4, alignSelf: 'stretch', borderRadius: 3 },
+  // Virtual: la misma barra, atenuada. El borde punteado sobre 4 px de ancho
+  // se veía como una escalerita de puntos en vez de una línea.
+  classBarVirtual: { opacity: 0.4 },
   classTime: { fontSize: 14, fontWeight: '700', color: colors.text },
   classMeta: { fontSize: 11.5, color: colors.textSoft, marginTop: 2 },
   classTag: { backgroundColor: colors.slate100, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },

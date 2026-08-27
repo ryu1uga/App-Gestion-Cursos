@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { ScrollView, View, Text, Pressable, Switch, useWindowDimensions, StyleSheet } from 'react-native'
 import { useStore } from '../lib/store.js'
 import {
@@ -39,13 +39,19 @@ export default function TimetableScreen({ onOpen }) {
   const apaisado = width > height
   const [onlyActive, setOnlyActive] = useState(true)
   const [pickedDay, setPickedDay] = useState(null)
-  const now = new Date()
+  // El reloj se refresca cada minuto: así la línea de "ahora" y la cuenta
+  // regresiva de la próxima clase no se quedan congeladas.
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60000)
+    return () => clearInterval(id)
+  }, [])
   const hoy = now.getDay()
 
   const opts = { onlyActive, date: now }
-  const sessions = useMemo(() => allSessions(state.courses, opts), [state.courses, onlyActive])
-  const byDay = useMemo(() => sessionsByDay(state.courses, opts), [state.courses, onlyActive])
-  const next = useMemo(() => nextClass(state.courses, now), [state.courses])
+  const sessions = useMemo(() => allSessions(state.courses, opts), [state.courses, onlyActive, now])
+  const byDay = useMemo(() => sessionsByDay(state.courses, opts), [state.courses, onlyActive, now])
+  const next = useMemo(() => nextClass(state.courses, now), [state.courses, now])
 
   const conClase = WEEK_ORDER.filter((d) => (byDay[d] || []).length > 0)
   const days = conClase.length ? conClase : [1, 2, 3, 4, 5]
@@ -138,6 +144,8 @@ export default function TimetableScreen({ onOpen }) {
 
                     {layoutDay(byDay[d] || []).map((s) => {
                       const h = Math.max(24, (s.endMin - s.startMin) * PX_PER_MIN - 3)
+                      // Bloque corto: nombre y hora en una sola fila, si no se cortan.
+                      const compacto = h < 46
                       const w = (anchoCol - 6) / (s.lanes || 1)
                       return (
                         <Pressable
@@ -145,6 +153,7 @@ export default function TimetableScreen({ onOpen }) {
                           onPress={() => onOpen(s.courseId)}
                           style={[
                             styles.block,
+                            compacto && styles.blockCompact,
                             isVirtual(s) && styles.blockVirtual,
                             {
                               top: (s.startMin - from) * PX_PER_MIN + 8,
@@ -156,8 +165,8 @@ export default function TimetableScreen({ onOpen }) {
                             },
                           ]}
                         >
-                          <Text style={[styles.blockName, { color: s.courseColor }]} numberOfLines={1}>{s.courseName}</Text>
-                          <Text style={styles.blockTime} numberOfLines={1}>{s.start}–{s.end}</Text>
+                          <Text style={[styles.blockName, compacto && styles.blockNameCompact, { color: s.courseColor }]} numberOfLines={1}>{s.courseName}</Text>
+                          <Text style={[styles.blockTime, compacto && styles.blockTimeCompact]} numberOfLines={1}>{s.start}–{s.end}</Text>
                           {h >= 52 && (
                             <Text style={styles.blockMeta} numberOfLines={1}>
                               {[s.label, s.room, isVirtual(s) ? 'Virtual' : null].filter(Boolean).join(' · ')}
@@ -214,13 +223,13 @@ export default function TimetableScreen({ onOpen }) {
             </View>
             <View style={[
               styles.itemBar,
-              { backgroundColor: isVirtual(s) ? 'transparent' : s.courseColor, borderColor: s.courseColor },
+              { backgroundColor: s.courseColor },
               isVirtual(s) && styles.itemBarVirtual,
             ]} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={styles.itemName} numberOfLines={1}>{s.courseName}</Text>
               <Text style={styles.itemMeta} numberOfLines={1}>
-                {[s.label, s.room].filter(Boolean).join('  ·  ') || 'Sin aula'}
+                {[s.label, s.room].filter(Boolean).join('  ·  ') || (isVirtual(s) ? 'Sin sala' : 'Sin aula')}
               </Text>
             </View>
             <View style={styles.tag}><Text style={styles.tagText}>{MODE_LABEL[s.mode] || MODE_LABEL.presencial}</Text></View>
@@ -274,8 +283,10 @@ const styles = StyleSheet.create({
   itemTime: { width: 46 },
   itemStart: { fontSize: 13.5, fontWeight: '800', color: colors.text },
   itemEnd: { fontSize: 11.5, color: colors.textFaint, marginTop: 1 },
-  itemBar: { width: 4, alignSelf: 'stretch', borderRadius: 3, borderWidth: 1.5 },
-  itemBarVirtual: { borderStyle: 'dashed' },
+  itemBar: { width: 4, alignSelf: 'stretch', borderRadius: 3 },
+  // Virtual: la misma barra, atenuada. El borde punteado sobre 4 px de ancho
+  // se veía como una escalerita de puntos en vez de una línea.
+  itemBarVirtual: { opacity: 0.4 },
   itemName: { fontSize: 14.5, fontWeight: '700', color: colors.text },
   itemMeta: { fontSize: 11.5, color: colors.textSoft, marginTop: 2 },
 
@@ -297,6 +308,9 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderLeftWidth: 3, borderRadius: 9, paddingHorizontal: 6, paddingVertical: 4,
   },
   blockVirtual: { borderStyle: 'dashed' },
+  blockCompact: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 2 },
+  blockNameCompact: { flexShrink: 1 },
+  blockTimeCompact: { marginTop: 0, flexShrink: 0 },
   blockName: { fontSize: 11.5, fontWeight: '700' },
   blockTime: { fontSize: 10, color: colors.textSoft, marginTop: 1 },
   blockMeta: { fontSize: 9.5, color: colors.textFaint, marginTop: 1 },
