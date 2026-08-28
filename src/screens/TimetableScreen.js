@@ -1,17 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  ScrollView, View, Text, Pressable, Switch, TextInput, Modal, Alert, Keyboard,
-  KeyboardAvoidingView, Platform, useWindowDimensions, StyleSheet,
+  ScrollView, View, Text, Pressable, Switch,
+  useWindowDimensions, StyleSheet,
 } from 'react-native'
-import DateTimePicker from '@react-native-community/datetimepicker'
 import { useStore } from '../lib/store.js'
 import {
-  WEEK_ORDER, dayName, MODES, MODE_LABEL, isVirtual, minutesOf,
+  WEEK_ORDER, dayName, MODE_LABEL, isVirtual,
   allSessions, sessionsByDay, layoutDay, dayBounds, fmtTime, nextClass,
-  BLOCK_SUGGESTIONS, MAX_BLOCK_NAME, MAX_ROOM,
 } from '../lib/classes.js'
 import { Card, Icon } from '../components/ui.js'
-import { colors, palette } from '../theme.js'
+import ScheduleSheet from '../components/ScheduleSheet.js'
+import { colors } from '../theme.js'
 
 // Alto de un minuto en la rejilla apaisada.
 const PX_PER_MIN = 0.8
@@ -39,12 +38,13 @@ function whenText(next, now) {
 }
 
 export default function TimetableScreen({ onOpen }) {
-  const { state, dispatch } = useStore()
+  const { state } = useStore()
   const { width, height } = useWindowDimensions()
   const apaisado = width > height
   const [onlyActive, setOnlyActive] = useState(true)
   const [pickedDay, setPickedDay] = useState(null)
-  const [editingBlock, setEditingBlock] = useState(null)
+  // La hoja de agregar/editar. null = cerrada; { edit: null } = una nueva.
+  const [hoja, setHoja] = useState(null)
   // El reloj se refresca cada minuto: así la línea de "ahora" y la cuenta
   // regresiva de la próxima clase no se quedan congeladas.
   const [now, setNow] = useState(() => new Date())
@@ -60,11 +60,18 @@ export default function TimetableScreen({ onOpen }) {
   const byDay = useMemo(() => sessionsByDay(state.courses, opts), [state.courses, blocks, onlyActive, now])
   const next = useMemo(() => nextClass(state.courses, now, blocks), [state.courses, blocks, now])
 
-  const patchBlock = (id, patch) => dispatch({ type: 'UPDATE_BLOCK', id, patch })
-  const bloqueEnEdicion = editingBlock != null ? blocks.find((b) => b.id === editingBlock) : null
-
-  // Un bloque libre no tiene curso que abrir: se edita en su propia hoja.
-  const abrir = (s) => (s.blockId ? setEditingBlock(s.blockId) : onOpen(s.courseId))
+  // Un toque abre lo que sea que se tocó, en la misma hoja: antes una clase
+  // saltaba al curso y una actividad abría una hoja distinta.
+  const abrir = (s) => {
+    if (s.blockId) {
+      const b = blocks.find((x) => x.id === s.blockId)
+      if (b) setHoja({ edit: { kind: 'actividad', block: b } })
+      return
+    }
+    const c = state.courses.find((x) => x.id === s.courseId)
+    const sesion = (c?.sessions ?? []).find((x) => x.id === s.id)
+    if (sesion) setHoja({ edit: { kind: 'clase', courseId: s.courseId, session: sesion } })
+  }
 
   const conClase = WEEK_ORDER.filter((d) => (byDay[d] || []).length > 0)
   const days = conClase.length ? conClase : [1, 2, 3, 4, 5]
@@ -77,19 +84,20 @@ export default function TimetableScreen({ onOpen }) {
 
   // La tarjeta y la hoja se usan en las tres vistas (vacía, apaisada y vertical),
   // así que se arman una vez aquí.
-  const tarjetaBloques = (
+  const tarjetaActividades = (
         <Card style={{ marginBottom: 12 }}>
           <View style={styles.blocksHead}>
-            <Text style={styles.dayTitle}>Otros bloques</Text>
+            <Text style={styles.dayTitle}>Actividades</Text>
             {blocks.length > 0 && <Text style={styles.blocksCount}>{blocks.length}</Text>}
           </View>
           <Text style={styles.blocksHint}>
-            Lo que te ocupa la semana sin ser un curso: trabajo, prácticas, gimnasio.
+            Lo que te ocupa la semana sin ser un curso: trabajo, deporte, traslados.
             Sale en el horario junto a las clases y no cuenta para ninguna nota.
           </Text>
 
           {blocks.map((b) => (
-            <Pressable key={b.id} style={styles.item} onPress={() => setEditingBlock(b.id)}>
+            <Pressable key={b.id} style={styles.item}
+              onPress={() => setHoja({ edit: { kind: 'actividad', block: b } })}>
               <View style={styles.itemTime}>
                 <Text style={styles.itemStart}>{b.start || '--:--'}</Text>
                 <Text style={styles.itemEnd}>{b.end || '--:--'}</Text>
@@ -100,36 +108,32 @@ export default function TimetableScreen({ onOpen }) {
                 b.mode === 'virtual' && styles.itemBarVirtual,
               ]} />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.itemName} numberOfLines={1}>{b.name || 'Sin nombre'}</Text>
+                <Text style={styles.itemName} numberOfLines={1}>{b.name || b.label || 'Sin nombre'}</Text>
                 <Text style={styles.itemMeta} numberOfLines={1}>
-                  {[dayName(b.day, true), b.room].filter(Boolean).join('  ·  ')}
+                  {[dayName(b.day, true), b.name ? b.label : null, b.room]
+                    .filter(Boolean).join('  ·  ')}
                 </Text>
               </View>
               <View style={styles.tag}><Text style={styles.tagText}>{MODE_LABEL[b.mode] || MODE_LABEL.presencial}</Text></View>
             </Pressable>
           ))}
 
-          <Pressable style={styles.addBlock} onPress={() => dispatch({ type: 'ADD_BLOCK' })}>
-            <Text style={styles.addBlockText}>+ Agregar bloque</Text>
+          <Pressable style={styles.addBlock}
+            onPress={() => setHoja({ edit: null, kind: 'actividad' })}>
+            <Text style={styles.addBlockText}>+ Agregar actividad</Text>
           </Pressable>
         </Card>
   )
 
-  const hojaBloque = bloqueEnEdicion ? (
-    <BlockSheet
-      b={bloqueEnEdicion}
-      onPatch={(patch) => patchBlock(bloqueEnEdicion.id, patch)}
-      onClose={() => setEditingBlock(null)}
-      onDelete={() => {
-        const id = bloqueEnEdicion.id
-        Alert.alert('Eliminar bloque', '¿Quitarlo del horario?', [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Eliminar', style: 'destructive', onPress: () => { setEditingBlock(null); dispatch({ type: 'DELETE_BLOCK', id }) } },
-        ])
-      }}
+  const laHoja = hoja ? (
+    <ScheduleSheet
+      key={hoja.edit?.session?.id ?? hoja.edit?.block?.id ?? 'nueva'}
+      edit={hoja.edit}
+      defaultKind={hoja.kind ?? null}
+      onOpenCourse={onOpen}
+      onClose={() => setHoja(null)}
     />
   ) : null
-
 
   const cabecera = (
     <View style={styles.head}>
@@ -140,6 +144,16 @@ export default function TimetableScreen({ onOpen }) {
       <Text style={styles.switchLabel}>Vigente</Text>
       <Switch value={onlyActive} onValueChange={setOnlyActive} trackColor={{ true: colors.brand }} />
     </View>
+  )
+
+  // Un solo boton para todo: sirve igual para una clase de un curso que para
+  // lo que no es un curso. Antes las clases solo se podian agregar entrando
+  // al curso, y esta pantalla era de solo lectura para ellas.
+  const botonAgregar = (
+    <Pressable style={styles.addMain} onPress={() => setHoja({ edit: null })}>
+      <Icon name="plus" size={16} color="#fff" />
+      <Text style={styles.addMainText}>Agregar al horario</Text>
+    </Pressable>
   )
 
   const próxima = next ? (
@@ -170,12 +184,13 @@ export default function TimetableScreen({ onOpen }) {
         {cabecera}
         <Card style={{ marginBottom: 12 }}>
           <Text style={styles.empty}>
-            Todavía no hay nada esta semana. Abre un curso y agrega sus clases en la tarjeta “Clases”,
-            o crea aquí abajo un bloque que no sea de un curso.
+            Todavía no hay nada esta semana. Usa “Agregar al horario”: sirve igual
+            para una clase de un curso que para lo que no es un curso.
           </Text>
         </Card>
-        {tarjetaBloques}
-        {hojaBloque}
+        {botonAgregar}
+        {tarjetaActividades}
+        {laHoja}
       </ScrollView>
     )
   }
@@ -261,7 +276,7 @@ export default function TimetableScreen({ onOpen }) {
             </ScrollView>
           </View>
         </ScrollView>
-        {hojaBloque}
+        {laHoja}
       </View>
     )
   }
@@ -318,190 +333,19 @@ export default function TimetableScreen({ onOpen }) {
         ))}
       </Card>
 
-      {tarjetaBloques}
+      {botonAgregar}
+
+      {tarjetaActividades}
 
       <View style={styles.footHint}>
         <Icon name="rotate-cw" size={13} color={colors.textFaint} />
         <Text style={styles.footHintText}>Gira el teléfono para ver la semana completa.</Text>
       </View>
 
-      {hojaBloque}
+      {laHoja}
     </ScrollView>
   )
 }
-
-// ------------------------------------------------------------
-//  Hoja de edición de un bloque libre
-//  Guarda al instante en el store, como la de clases; el botón solo cierra.
-// ------------------------------------------------------------
-const two = (n) => String(n).padStart(2, '0')
-const timeToDate = (hhmm) => {
-  const mins = minutesOf(hhmm)
-  const d = new Date()
-  d.setHours(mins == null ? 8 : Math.floor(mins / 60), mins == null ? 0 : mins % 60, 0, 0)
-  return d
-}
-const dateToTime = (d) => `${two(d.getHours())}:${two(d.getMinutes())}`
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-const fmtFecha = (iso) => {
-  if (!iso) return null
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? null : `${d.getDate()} ${MESES[d.getMonth()]}`
-}
-
-function BlockSheet({ b, onPatch, onClose, onDelete }) {
-  const [picking, setPicking] = useState(null)   // 'start' | 'end' | 'desde' | 'hasta'
-
-  // Igual que en las clases: el fin nunca queda antes del inicio.
-  const setEnd = (v) => {
-    const ini = minutesOf(b.start)
-    const nuevo = minutesOf(v)
-    if (nuevo != null && ini != null && nuevo <= ini) return onPatch({ end: fmtTime(ini + 30) })
-    onPatch({ end: v })
-  }
-  const setStart = (v) => {
-    const antes = minutesOf(b.start)
-    const fin = minutesOf(b.end)
-    const nuevo = minutesOf(v)
-    if (nuevo == null || antes == null || fin == null || fin <= antes) return onPatch({ start: v })
-    onPatch({ start: v, end: fmtTime(nuevo + (fin - antes)) })
-  }
-
-  return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.sheetRoot}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView style={styles.sheet} contentContainerStyle={{ paddingBottom: 8 }}
-            keyboardShouldPersistTaps="handled">
-            <View style={styles.grab} />
-
-            <Text style={styles.sheetLabel}>Nombre</Text>
-            <TextInput value={b.name || ''} onChangeText={(v) => onPatch({ name: v })}
-              style={styles.input} placeholder="Trabajo, Prácticas…" placeholderTextColor={colors.textFaint}
-              maxLength={MAX_BLOCK_NAME} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} />
-            <View style={styles.pillGrid}>
-              {BLOCK_SUGGESTIONS.map((n) => (
-                <Pressable key={n} onPress={() => onPatch({ name: n })}
-                  style={[styles.pill, b.name === n && styles.pillOn]}>
-                  <Text style={[styles.pillText, b.name === n && styles.pillTextOn]}>{n}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <Text style={styles.sheetLabel}>Color</Text>
-            <View style={styles.swatches}>
-              {palette.map((col) => (
-                <Pressable key={col} onPress={() => onPatch({ color: col })}
-                  style={[styles.swatch, { backgroundColor: col }, b.color === col && styles.swatchOn]} />
-              ))}
-            </View>
-
-            <Text style={styles.sheetLabel}>Día</Text>
-            <View style={styles.pillGrid}>
-              {WEEK_ORDER.map((d) => (
-                <Pressable key={d} onPress={() => onPatch({ day: d })}
-                  style={[styles.pill, b.day === d && styles.pillOn]}>
-                  <Text style={[styles.pillText, b.day === d && styles.pillTextOn]}>{dayName(d)}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <View style={styles.sheetRow}>
-              <View style={styles.sheetField}>
-                <Text style={styles.sheetLabel}>Inicio</Text>
-                <Pressable style={styles.sheetTimeBtn} onPress={() => setPicking('start')}>
-                  <Icon name="clock" size={15} color={colors.brand} />
-                  <Text style={styles.sheetDateText}>{b.start || '--:--'}</Text>
-                </Pressable>
-              </View>
-              <View style={styles.sheetField}>
-                <Text style={styles.sheetLabel}>Fin</Text>
-                <Pressable style={styles.sheetTimeBtn} onPress={() => setPicking('end')}>
-                  <Icon name="clock" size={15} color={colors.brand} />
-                  <Text style={styles.sheetDateText}>{b.end || '--:--'}</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={{ marginTop: 16 }}>
-              <Text style={styles.sheetLabel}>Modalidad</Text>
-              <View style={styles.pillGrid}>
-                {MODES.map((m) => (
-                  <Pressable key={m} onPress={() => onPatch({ mode: m })}
-                    style={[styles.pill, b.mode === m && styles.pillOn]}>
-                    <Text style={[styles.pillText, b.mode === m && styles.pillTextOn]}>{MODE_LABEL[m]}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            <Text style={styles.sheetLabel}>Lugar</Text>
-            <TextInput value={b.room || ''} onChangeText={(v) => onPatch({ room: v })}
-              style={styles.input} maxLength={MAX_ROOM}
-              placeholder={b.mode === 'virtual' ? 'Sala, plataforma…' : 'Oficina, sede…'}
-              placeholderTextColor={colors.textFaint} returnKeyType="done"
-              onSubmitEditing={() => Keyboard.dismiss()} />
-
-            <Text style={styles.sheetLabel}>Vigencia</Text>
-            <Text style={styles.sheetHint}>
-              Sin fechas el bloque sale siempre. Con ellas entra y sale del horario solo,
-              como un curso con fechas.
-            </Text>
-            <View style={styles.sheetRow}>
-              {[['desde', 'startDate', 'Desde'], ['hasta', 'endDate', 'Hasta']].map(([k, campo, rot]) => (
-                <View key={k} style={styles.sheetField}>
-                  <Pressable style={styles.sheetTimeBtn} onPress={() => setPicking(k)}>
-                    <Icon name="calendar" size={15} color={b[campo] ? colors.brand : colors.textFaint} />
-                    <Text style={[styles.sheetDateText, !b[campo] && styles.sheetDateEmpty]}>
-                      {fmtFecha(b[campo]) || rot}
-                    </Text>
-                    {b[campo] ? (
-                      <Pressable hitSlop={8} onPress={() => onPatch({ [campo]: null })}>
-                        <Icon name="x" size={14} color={colors.textFaint} />
-                      </Pressable>
-                    ) : null}
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.sheetBtns}>
-              <Pressable style={styles.sheetDel} onPress={onDelete}>
-                <Icon name="trash-2" size={15} color={colors.red} />
-                <Text style={styles.sheetDelText}>Eliminar</Text>
-              </Pressable>
-              <Pressable style={styles.sheetOk} onPress={onClose}>
-                <Text style={styles.sheetOkText}>Listo</Text>
-              </Pressable>
-            </View>
-
-            {picking && (
-              <DateTimePicker
-                mode={picking === 'start' || picking === 'end' ? 'time' : 'date'}
-                is24Hour
-                value={
-                  picking === 'start' ? timeToDate(b.start)
-                    : picking === 'end' ? timeToDate(b.end)
-                      : new Date(b[picking === 'desde' ? 'startDate' : 'endDate'] || Date.now())
-                }
-                onChange={(event, sel) => {
-                  const cual = picking
-                  setPicking(null)
-                  if (event.type !== 'set' || !sel) return
-                  if (cual === 'start') setStart(dateToTime(sel))
-                  else if (cual === 'end') setEnd(dateToTime(sel))
-                  else onPatch({ [cual === 'desde' ? 'startDate' : 'endDate']: sel.toISOString() })
-                }}
-              />
-            )}
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
-  )
-}
-
 
 const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 40 },
@@ -556,51 +400,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10, alignItems: 'center', marginTop: 10,
   },
   addBlockText: { color: colors.brand, fontWeight: '700', fontSize: 13 },
-
-  // Hoja de edición del bloque
-  sheetRoot: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(51,45,42,0.42)' },
-  sheet: {
-    backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22,
-    paddingHorizontal: 20, paddingTop: 8, paddingBottom: 20, maxHeight: '88%',
+  addMain: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    backgroundColor: colors.brand, borderRadius: 12, paddingVertical: 13, marginBottom: 12,
   },
-  grab: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: colors.slate100, marginBottom: 14 },
-  sheetLabel: {
-    fontSize: 10, fontWeight: '700', color: colors.textFaint,
-    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 4,
-  },
-  sheetHint: { fontSize: 11.5, color: colors.textSoft, lineHeight: 16, marginBottom: 8, marginTop: -2 },
-  input: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
-    fontSize: 14, color: colors.text, backgroundColor: colors.card, marginBottom: 10,
-  },
-  pillGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 12 },
-  pill: {
-    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999,
-    backgroundColor: colors.slate50, borderWidth: 1, borderColor: colors.border,
-  },
-  pillOn: { backgroundColor: colors.brandLight, borderColor: colors.brand },
-  pillText: { fontSize: 12.5, color: colors.textSoft, fontWeight: '600' },
-  pillTextOn: { color: colors.brandDark, fontWeight: '800' },
-  swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  swatch: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: 'transparent' },
-  swatchOn: { borderColor: colors.text },
-  sheetRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  sheetField: { flex: 1 },
-  sheetTimeBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderWidth: 1, borderColor: colors.border, borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 11,
-  },
-  sheetDateText: { fontSize: 14, color: colors.brand, fontWeight: '700', flex: 1 },
-  sheetDateEmpty: { color: colors.textFaint, fontWeight: '500' },
-  sheetBtns: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 },
-  sheetDel: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 11, paddingHorizontal: 14,
-    borderRadius: 12, borderWidth: 1, borderColor: colors.border,
-  },
-  sheetDelText: { color: colors.red, fontWeight: '700', fontSize: 13.5 },
-  sheetOk: { flex: 1, backgroundColor: colors.brand, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
-  sheetOkText: { color: '#fff', fontWeight: '800', fontSize: 14.5 },
+  addMainText: { color: '#fff', fontWeight: '800', fontSize: 14.5 },
 
   footHint: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' },
   footHintText: { fontSize: 12, color: colors.textFaint },
