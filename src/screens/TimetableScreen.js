@@ -55,7 +55,9 @@ export default function TimetableScreen({ onOpen }) {
   const hoy = now.getDay()
 
   const blocks = state.blocks ?? []
-  const opts = { onlyActive, date: now, blocks }
+  // scope 'week': se muestra lo vigente en cualquier día de esta semana, no
+  // solo lo de hoy, para que una actividad que arranca el jueves ya aparezca.
+  const opts = { onlyActive, date: now, blocks, scope: 'week' }
   const sessions = useMemo(() => allSessions(state.courses, opts), [state.courses, blocks, onlyActive, now])
   const byDay = useMemo(() => sessionsByDay(state.courses, opts), [state.courses, blocks, onlyActive, now])
   const next = useMemo(() => nextClass(state.courses, now, blocks), [state.courses, blocks, now])
@@ -141,7 +143,7 @@ export default function TimetableScreen({ onOpen }) {
         <Text style={styles.h2}>Horario</Text>
         <Text style={styles.sub}>Tus clases de la semana.</Text>
       </View>
-      <Text style={styles.switchLabel}>Vigente</Text>
+      <Text style={styles.switchLabel}>Vigente esta semana</Text>
       <Switch value={onlyActive} onValueChange={setOnlyActive} trackColor={{ true: colors.brand }} />
     </View>
   )
