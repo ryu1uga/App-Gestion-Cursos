@@ -10,7 +10,7 @@ import {
 } from '../lib/classes.js'
 import { Card, Icon } from '../components/ui.js'
 import ScheduleSheet from '../components/ScheduleSheet.js'
-import { colors } from '../theme.js'
+import { useStyles } from '../lib/useTheme.js'
 
 // Alto de un minuto en la rejilla apaisada.
 const PX_PER_MIN = 0.8
@@ -38,6 +38,7 @@ function whenText(next, now) {
 }
 
 export default function TimetableScreen({ onOpen }) {
+  const { tema, styles } = useStyles(makeStyles)
   const { state } = useStore()
   const { width, height } = useWindowDimensions()
   const apaisado = width > height
@@ -106,7 +107,7 @@ export default function TimetableScreen({ onOpen }) {
               </View>
               <View style={[
                 styles.itemBar,
-                { backgroundColor: b.color || colors.brand },
+                { backgroundColor: b.color || tema.brand },
                 b.mode === 'virtual' && styles.itemBarVirtual,
               ]} />
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -144,7 +145,7 @@ export default function TimetableScreen({ onOpen }) {
         <Text style={styles.sub}>Tus clases de la semana.</Text>
       </View>
       <Text style={styles.switchLabel}>Vigente esta semana</Text>
-      <Switch value={onlyActive} onValueChange={setOnlyActive} trackColor={{ true: colors.brand }} />
+      <Switch value={onlyActive} onValueChange={setOnlyActive} trackColor={{ true: tema.brand }} />
     </View>
   )
 
@@ -340,7 +341,7 @@ export default function TimetableScreen({ onOpen }) {
       {tarjetaActividades}
 
       <View style={styles.footHint}>
-        <Icon name="rotate-cw" size={13} color={colors.textFaint} />
+        <Icon name="rotate-cw" size={13} color={tema.textFaint} />
         <Text style={styles.footHintText}>Gira el teléfono para ver la semana completa.</Text>
       </View>
 
@@ -349,78 +350,78 @@ export default function TimetableScreen({ onOpen }) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (tema) => StyleSheet.create({
   container: { padding: 16, paddingBottom: 40 },
   head: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  h2: { fontSize: 17, fontWeight: '700', color: colors.text },
-  sub: { fontSize: 13, color: colors.textSoft, marginTop: 2 },
-  switchLabel: { fontSize: 12, color: colors.textSoft, marginRight: 6 },
-  empty: { color: colors.textSoft, textAlign: 'center', paddingVertical: 16 },
+  h2: { fontSize: 17, fontWeight: '700', color: tema.text },
+  sub: { fontSize: 13, color: tema.textSoft, marginTop: 2 },
+  switchLabel: { fontSize: 12, color: tema.textSoft, marginRight: 6 },
+  empty: { color: tema.textSoft, textAlign: 'center', paddingVertical: 16 },
 
-  kicker: { fontSize: 11, fontWeight: '700', color: colors.textFaint, letterSpacing: 0.5 },
-  nextCard: { marginBottom: 12, borderLeftWidth: 4, borderLeftColor: colors.brand },
+  kicker: { fontSize: 11, fontWeight: '700', color: tema.textFaint, letterSpacing: 0.5 },
+  nextCard: { marginBottom: 12, borderLeftWidth: 4, borderLeftColor: tema.brand },
   nextRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-  nextName: { fontSize: 15, fontWeight: '700', color: colors.text, flexShrink: 1 },
-  nextMeta: { fontSize: 12, color: colors.textSoft, marginTop: 4 },
-  nextWhen: { fontSize: 13, fontWeight: '700', color: colors.amber, marginTop: 4 },
+  nextName: { fontSize: 15, fontWeight: '700', color: tema.text, flexShrink: 1 },
+  nextMeta: { fontSize: 12, color: tema.textSoft, marginTop: 4 },
+  nextWhen: { fontSize: 13, fontWeight: '700', color: tema.amber, marginTop: 4 },
   dot: { width: 11, height: 11, borderRadius: 6, marginRight: 8 },
 
-  tag: { backgroundColor: colors.slate100, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginLeft: 8 },
-  tagText: { fontSize: 10.5, fontWeight: '700', color: colors.textSoft },
+  tag: { backgroundColor: tema.slate100, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginLeft: 8 },
+  tagText: { fontSize: 10.5, fontWeight: '700', color: tema.textSoft },
 
   chipsWrap: { marginBottom: 12 },
   chips: { gap: 8, paddingRight: 8 },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.slate100, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8,
+    backgroundColor: tema.slate100, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8,
   },
-  chipOn: { backgroundColor: colors.brand },
-  chipText: { fontSize: 13, fontWeight: '700', color: colors.textSoft },
+  chipOn: { backgroundColor: tema.brand },
+  chipText: { fontSize: 13, fontWeight: '700', color: tema.textSoft },
   chipTextOn: { color: '#fff' },
-  chipCount: { minWidth: 18, alignItems: 'center', borderRadius: 999, backgroundColor: colors.card, paddingHorizontal: 5 },
+  chipCount: { minWidth: 18, alignItems: 'center', borderRadius: 999, backgroundColor: tema.card, paddingHorizontal: 5 },
   chipCountOn: { backgroundColor: 'rgba(255,255,255,0.28)' },
-  chipCountText: { fontSize: 11, fontWeight: '800', color: colors.textSoft },
+  chipCountText: { fontSize: 11, fontWeight: '800', color: tema.textSoft },
   chipCountTextOn: { color: '#fff' },
 
-  dayTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 6 },
-  item: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.slate50 },
+  dayTitle: { fontSize: 14, fontWeight: '700', color: tema.text, marginBottom: 6 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: 1, borderTopColor: tema.slate50 },
   itemTime: { width: 46 },
-  itemStart: { fontSize: 13.5, fontWeight: '800', color: colors.text },
-  itemEnd: { fontSize: 11.5, color: colors.textFaint, marginTop: 1 },
+  itemStart: { fontSize: 13.5, fontWeight: '800', color: tema.text },
+  itemEnd: { fontSize: 11.5, color: tema.textFaint, marginTop: 1 },
   itemBar: { width: 4, alignSelf: 'stretch', borderRadius: 3 },
   // Virtual: la misma barra, atenuada. El borde punteado sobre 4 px de ancho
   // se veía como una escalerita de puntos en vez de una línea.
   itemBarVirtual: { opacity: 0.4 },
-  itemName: { fontSize: 14.5, fontWeight: '700', color: colors.text },
-  itemMeta: { fontSize: 11.5, color: colors.textSoft, marginTop: 2 },
+  itemName: { fontSize: 14.5, fontWeight: '700', color: tema.text },
+  itemMeta: { fontSize: 11.5, color: tema.textSoft, marginTop: 2 },
 
   blocksHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  blocksCount: { fontSize: 12, fontWeight: '700', color: colors.textFaint },
-  blocksHint: { fontSize: 11.5, color: colors.textSoft, lineHeight: 16, marginTop: 2, marginBottom: 4 },
+  blocksCount: { fontSize: 12, fontWeight: '700', color: tema.textFaint },
+  blocksHint: { fontSize: 11.5, color: tema.textSoft, lineHeight: 16, marginTop: 2, marginBottom: 4 },
   addBlock: {
-    borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', borderRadius: 12,
+    borderWidth: 1, borderColor: tema.border, borderStyle: 'dashed', borderRadius: 12,
     paddingVertical: 10, alignItems: 'center', marginTop: 10,
   },
-  addBlockText: { color: colors.brand, fontWeight: '700', fontSize: 13 },
+  addBlockText: { color: tema.brand, fontWeight: '700', fontSize: 13 },
   addMain: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    backgroundColor: colors.brand, borderRadius: 12, paddingVertical: 13, marginBottom: 12,
+    backgroundColor: tema.brand, borderRadius: 12, paddingVertical: 13, marginBottom: 12,
   },
   addMainText: { color: '#fff', fontWeight: '800', fontSize: 14.5 },
 
   footHint: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' },
-  footHintText: { fontSize: 12, color: colors.textFaint },
+  footHintText: { fontSize: 12, color: tema.textFaint },
 
   gridWrap: { flex: 1, paddingHorizontal: 12, paddingTop: 8 },
-  gridHead: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 6 },
-  dayHead: { fontSize: 12, fontWeight: '700', color: colors.textSoft, textAlign: 'center' },
-  dayHeadToday: { color: colors.brand },
+  gridHead: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: tema.border, paddingBottom: 6 },
+  dayHead: { fontSize: 12, fontWeight: '700', color: tema.textSoft, textAlign: 'center' },
+  dayHeadToday: { color: tema.brand },
   gridBody: { flexDirection: 'row' },
-  hourLabel: { position: 'absolute', right: 6, fontSize: 10, color: colors.textFaint, transform: [{ translateY: -6 }] },
-  col: { position: 'relative', borderLeftWidth: 1, borderLeftColor: colors.slate100 },
-  colToday: { backgroundColor: colors.slate50 },
-  line: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: colors.slate100 },
-  nowLine: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: colors.red, zIndex: 3 },
+  hourLabel: { position: 'absolute', right: 6, fontSize: 10, color: tema.textFaint, transform: [{ translateY: -6 }] },
+  col: { position: 'relative', borderLeftWidth: 1, borderLeftColor: tema.slate100 },
+  colToday: { backgroundColor: tema.slate50 },
+  line: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: tema.slate100 },
+  nowLine: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: tema.red, zIndex: 3 },
   block: {
     position: 'absolute', overflow: 'hidden',
     borderWidth: 1, borderLeftWidth: 3, borderRadius: 9, paddingHorizontal: 6, paddingVertical: 4,
@@ -430,6 +431,6 @@ const styles = StyleSheet.create({
   blockNameCompact: { flexShrink: 1 },
   blockTimeCompact: { marginTop: 0, flexShrink: 0 },
   blockName: { fontSize: 11.5, fontWeight: '700' },
-  blockTime: { fontSize: 10, color: colors.textSoft, marginTop: 1 },
-  blockMeta: { fontSize: 9.5, color: colors.textFaint, marginTop: 1 },
+  blockTime: { fontSize: 10, color: tema.textSoft, marginTop: 1 },
+  blockMeta: { fontSize: 9.5, color: tema.textFaint, marginTop: 1 },
 })

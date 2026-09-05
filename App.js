@@ -12,7 +12,7 @@ import TimetableScreen from './src/screens/TimetableScreen.js'
 import SettingsScreen from './src/screens/SettingsScreen.js'
 import Onboarding from './src/components/Onboarding.js'
 import { Icon } from './src/components/ui.js'
-import { colors } from './src/theme.js'
+import { useStyles, ThemeProvider } from './src/lib/useTheme.js'
 
 const TABS = [
   { id: 'cursos', label: 'Cursos', icon: 'book-open' },
@@ -27,6 +27,7 @@ const isPristineCourse = (c) =>
   !c.startDate && !c.endDate && !c.useOwnScale
 
 function Shell() {
+  const { tema, styles } = useStyles(makeStyles)
   const { state, dispatch } = useStore()
   const [tab, setTab] = useState('cursos')
   const [openCourse, setOpenCourse] = useState(null)
@@ -64,7 +65,7 @@ function Shell() {
   if (!state.loaded) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={colors.brand} size="large" />
+        <ActivityIndicator color={tema.brand} size="large" />
       </View>
     )
   }
@@ -97,7 +98,7 @@ function Shell() {
           const active = tab === t.id
           return (
             <Pressable key={t.id} style={styles.tab} onPress={() => { closeCourse(); setTab(t.id) }}>
-              <Icon name={t.icon} size={20} color={active ? colors.brand : colors.textFaint} />
+              <Icon name={t.icon} size={20} color={active ? tema.brand : tema.textFaint} />
               <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.label}</Text>
             </Pressable>
           )
@@ -107,33 +108,52 @@ function Shell() {
   )
 }
 
+// El marco de la app. Va aparte de App porque necesita estar dentro del
+// StoreProvider (para leer la preferencia de tema) y del ThemeProvider (para
+// que el fondo y la barra de estado sigan al tema).
+function Marco() {
+  const { tema, styles } = useStyles(makeStyles)
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style={tema.scheme === 'dark' ? 'light' : 'dark'} />
+      <Shell />
+    </SafeAreaView>
+  )
+}
+
+function ConTema() {
+  const { state } = useStore()
+  return (
+    <ThemeProvider mode={state.settings?.theme ?? 'system'}>
+      <Marco />
+    </ThemeProvider>
+  )
+}
+
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StoreProvider>
-        <SafeAreaView style={styles.safe}>
-          <StatusBar style="dark" />
-          <Shell />
-        </SafeAreaView>
+        <ConTema />
       </StoreProvider>
     </GestureHandlerRootView>
   )
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg, paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight : 0 },
+const makeStyles = (tema) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: tema.bg, paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight : 0 },
   flex: { flex: 1 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
-  title: { fontSize: 24, fontWeight: '800', color: colors.text },
-  subtitle: { fontSize: 13, color: colors.textSoft, marginTop: 2 },
+  title: { fontSize: 24, fontWeight: '800', color: tema.text },
+  subtitle: { fontSize: 13, color: tema.textSoft, marginTop: 2 },
   content: { flex: 1 },
   tabbar: {
-    flexDirection: 'row', backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border,
+    flexDirection: 'row', backgroundColor: tema.card, borderTopWidth: 1, borderTopColor: tema.border,
     paddingBottom: Platform.OS === 'ios' ? 20 : 8, paddingTop: 8,
   },
   tab: { flex: 1, alignItems: 'center', gap: 2 },
   tabIcon: { fontSize: 20, opacity: 0.85 },
-  tabLabel: { fontSize: 11, color: colors.textFaint, fontWeight: '600' },
-  tabLabelActive: { color: colors.brand },
+  tabLabel: { fontSize: 11, color: tema.textFaint, fontWeight: '600' },
+  tabLabelActive: { color: tema.brand },
 })

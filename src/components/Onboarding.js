@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react'
 import { View, Text, Pressable, ScrollView, useWindowDimensions, StyleSheet } from 'react-native'
 import { Icon } from './ui.js'
-import { colors } from '../theme.js'
+import { useStyles } from '../lib/useTheme.js'
 
 const SLIDES = [
   {
@@ -37,6 +37,7 @@ const SLIDES = [
 ]
 
 export default function Onboarding({ onDone }) {
+  const { tema, styles } = useStyles(makeStyles)
   const { width } = useWindowDimensions()
   const scrollRef = useRef(null)
   const [index, setIndex] = useState(0)
@@ -70,7 +71,7 @@ export default function Onboarding({ onDone }) {
       >
         {SLIDES.map((s, i) => (
           <View key={i} style={[styles.slide, { width }]}>
-            <View style={styles.iconCircle}><Icon name={s.icon} size={48} color={colors.brand} /></View>
+            <View style={styles.iconCircle}><Icon name={s.icon} size={48} color={tema.brand} /></View>
             <Text style={styles.title}>{s.title}</Text>
             <Text style={styles.body}>{s.body}</Text>
           </View>
@@ -94,22 +95,22 @@ export default function Onboarding({ onDone }) {
   )
 }
 
-const styles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.bg, zIndex: 50 },
+const makeStyles = (tema) => StyleSheet.create({
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: tema.bg, zIndex: 50 },
   topBar: { height: 44, justifyContent: 'center', alignItems: 'flex-end', paddingHorizontal: 20 },
-  skip: { color: colors.textSoft, fontWeight: '600', fontSize: 15 },
+  skip: { color: tema.textSoft, fontWeight: '600', fontSize: 15 },
   slide: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   iconCircle: {
-    width: 120, height: 120, borderRadius: 60, backgroundColor: colors.brandLight,
+    width: 120, height: 120, borderRadius: 60, backgroundColor: tema.brandLight,
     alignItems: 'center', justifyContent: 'center', marginBottom: 32,
   },
   icon: { fontSize: 56 },
-  title: { fontSize: 24, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 14 },
-  body: { fontSize: 16, color: colors.textSoft, textAlign: 'center', lineHeight: 24 },
+  title: { fontSize: 24, fontWeight: '800', color: tema.text, textAlign: 'center', marginBottom: 14 },
+  body: { fontSize: 16, color: tema.textSoft, textAlign: 'center', lineHeight: 24 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 20 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
-  dotActive: { backgroundColor: colors.brand, width: 22 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: tema.border },
+  dotActive: { backgroundColor: tema.brand, width: 22 },
   actions: { paddingHorizontal: 24, paddingBottom: 40 },
-  primaryBtn: { backgroundColor: colors.brand, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  primaryBtn: { backgroundColor: tema.brand, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   primaryText: { color: '#fff', fontWeight: '800', fontSize: 16 },
 })

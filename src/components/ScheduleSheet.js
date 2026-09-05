@@ -20,7 +20,8 @@ import {
   fmtDuration, suggestSlot, findConflicts, expandDays, draftError, nextBlockColor,
 } from '../lib/classes.js'
 import { Icon } from './ui.js'
-import { colors, palette } from '../theme.js'
+import { palette } from '../theme.js'
+import { useStyles } from '../lib/useTheme.js'
 
 const two = (n) => String(n).padStart(2, '0')
 const timeToDate = (hhmm) => {
@@ -44,6 +45,7 @@ export default function ScheduleSheet({
   defaultKind = null,
   onOpenCourse = null,
 }) {
+  const { tema, styles } = useStyles(makeStyles)
   const { state, dispatch } = useStore()
   const courses = state.courses ?? []
   const blocks = state.blocks ?? []
@@ -245,7 +247,7 @@ export default function ScheduleSheet({
                 <Text style={styles.label}>Nombre</Text>
                 <TextInput value={draft.name} onChangeText={(v) => set({ name: v })}
                   style={styles.input} placeholder="Cómo la llamas"
-                  placeholderTextColor={colors.textFaint}
+                  placeholderTextColor={tema.textFaint}
                   maxLength={MAX_BLOCK_NAME} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} />
 
                 <Text style={styles.label}>Color</Text>
@@ -275,14 +277,14 @@ export default function ScheduleSheet({
               <View style={styles.field}>
                 <Text style={styles.label}>Inicio</Text>
                 <Pressable style={styles.timeBtn} onPress={() => setPicking('start')}>
-                  <Icon name="clock" size={15} color={colors.brand} />
+                  <Icon name="clock" size={15} color={tema.brand} />
                   <Text style={styles.timeText}>{draft.start || '--:--'}</Text>
                 </Pressable>
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Fin</Text>
                 <Pressable style={[styles.timeBtn, dur <= 0 && styles.timeBtnMal]} onPress={() => setPicking('end')}>
-                  <Icon name="clock" size={15} color={dur <= 0 ? colors.red : colors.brand} />
+                  <Icon name="clock" size={15} color={dur <= 0 ? tema.red : tema.brand} />
                   <Text style={styles.timeText}>{draft.end || '--:--'}</Text>
                 </Pressable>
               </View>
@@ -317,7 +319,7 @@ export default function ScheduleSheet({
             <TextInput value={draft.room} onChangeText={(v) => set({ room: v })}
               style={styles.input} maxLength={MAX_ROOM}
               placeholder={draft.mode === 'virtual' ? 'Sala o plataforma' : 'Dónde es'}
-              placeholderTextColor={colors.textFaint} returnKeyType="done"
+              placeholderTextColor={tema.textFaint} returnKeyType="done"
               onSubmitEditing={() => Keyboard.dismiss()} />
 
             {esClase ? (
@@ -334,13 +336,13 @@ export default function ScheduleSheet({
                   {[['desde', 'startDate', 'Desde'], ['hasta', 'endDate', 'Hasta']].map(([k, campo, rot]) => (
                     <View key={k} style={styles.field}>
                       <Pressable style={styles.timeBtn} onPress={() => setPicking(k)}>
-                        <Icon name="calendar" size={15} color={draft[campo] ? colors.brand : colors.textFaint} />
+                        <Icon name="calendar" size={15} color={draft[campo] ? tema.brand : tema.textFaint} />
                         <Text style={[styles.timeText, !draft[campo] && styles.timeTextVacio]}>
                           {fmtFecha(draft[campo]) || rot}
                         </Text>
                         {draft[campo] ? (
                           <Pressable hitSlop={8} onPress={() => set({ [campo]: null })}>
-                            <Icon name="x" size={14} color={colors.textFaint} />
+                            <Icon name="x" size={14} color={tema.textFaint} />
                           </Pressable>
                         ) : null}
                       </Pressable>
@@ -352,7 +354,7 @@ export default function ScheduleSheet({
 
             {cruces.length > 0 && (
               <View style={styles.warn}>
-                <Icon name="alert-triangle" size={15} color={colors.amber} />
+                <Icon name="alert-triangle" size={15} color={tema.amber} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.warnTitle}>
                     Se cruza con {cruces.length === 1 ? 'algo' : `${cruces.length} cosas`} de tu semana.
@@ -375,7 +377,7 @@ export default function ScheduleSheet({
             <View style={styles.btns}>
               {editando && (
                 <Pressable style={styles.del} onPress={eliminar}>
-                  <Icon name="trash-2" size={15} color={colors.red} />
+                  <Icon name="trash-2" size={15} color={tema.red} />
                 </Pressable>
               )}
               {editando && esClase && onOpenCourse && (
@@ -425,6 +427,7 @@ export default function ScheduleSheet({
 //  no en la de actividades) parecía que no tenía tipo. “Otro…” solo lleva el
 //  cursor al campo de texto.
 function CampoTipo({ titulo, opciones, value, onChange }) {
+  const { tema, styles } = useStyles(makeStyles)
   const input = useRef(null)
   const propio = !!value && !opciones.includes(value)
   const lista = propio ? [...opciones, value] : opciones
@@ -444,93 +447,93 @@ function CampoTipo({ titulo, opciones, value, onChange }) {
         </Pressable>
       </View>
       <TextInput ref={input} value={value} onChangeText={onChange}
-        style={styles.input} placeholder="Escribe otro tipo" placeholderTextColor={colors.textFaint}
+        style={styles.input} placeholder="Escribe otro tipo" placeholderTextColor={tema.textFaint}
         maxLength={MAX_LABEL} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} />
     </>
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (tema) => StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(51,45,42,0.42)' },
   sheet: {
-    backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    backgroundColor: tema.card, borderTopLeftRadius: 22, borderTopRightRadius: 22,
     paddingHorizontal: 20, paddingTop: 8, paddingBottom: 20, maxHeight: '90%',
   },
-  grab: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: colors.slate100, marginBottom: 12 },
-  titulo: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: 10 },
+  grab: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: tema.slate100, marginBottom: 12 },
+  titulo: { fontSize: 16, fontWeight: '800', color: tema.text, marginBottom: 10 },
 
-  seg: { flexDirection: 'row', backgroundColor: colors.slate100, borderRadius: 12, padding: 3, gap: 3 },
+  seg: { flexDirection: 'row', backgroundColor: tema.slate100, borderRadius: 12, padding: 3, gap: 3 },
   segBtn: { flex: 1, borderRadius: 10, paddingVertical: 8, alignItems: 'center' },
-  segBtnOn: { backgroundColor: colors.card },
+  segBtnOn: { backgroundColor: tema.card },
   segBtnOff: { opacity: 0.45 },
-  segText: { fontSize: 12.5, fontWeight: '700', color: colors.textFaint },
-  segTextOn: { color: colors.brand },
+  segText: { fontSize: 12.5, fontWeight: '700', color: tema.textFaint },
+  segTextOn: { color: tema.brand },
 
   label: {
-    fontSize: 10, fontWeight: '700', color: colors.textFaint,
+    fontSize: 10, fontWeight: '700', color: tema.textFaint,
     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 14,
   },
-  note: { fontSize: 10, fontWeight: '400', color: colors.textFaint, textTransform: 'none', letterSpacing: 0 },
-  noteBlock: { fontSize: 11.5, color: colors.textSoft, lineHeight: 16, marginTop: 8 },
-  hint: { fontSize: 11.5, color: colors.textSoft, lineHeight: 16, marginBottom: 6, marginTop: -2 },
+  note: { fontSize: 10, fontWeight: '400', color: tema.textFaint, textTransform: 'none', letterSpacing: 0 },
+  noteBlock: { fontSize: 11.5, color: tema.textSoft, lineHeight: 16, marginTop: 8 },
+  hint: { fontSize: 11.5, color: tema.textSoft, lineHeight: 16, marginBottom: 6, marginTop: -2 },
 
   input: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
-    fontSize: 14, color: colors.text, backgroundColor: colors.card, marginTop: 4,
+    borderWidth: 1, borderColor: tema.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
+    fontSize: 14, color: tema.text, backgroundColor: tema.card, marginTop: 4,
   },
   pillGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 8 },
   pill: {
     paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999,
-    backgroundColor: colors.slate50, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: tema.slate50, borderWidth: 1, borderColor: tema.border,
   },
   pillCurso: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' },
-  pillOn: { backgroundColor: colors.brandLight, borderColor: colors.brand },
+  pillOn: { backgroundColor: tema.brandLight, borderColor: tema.brand },
   // "Otro…" no es un tipo más: abre el campo de texto de abajo.
   pillOtro: { borderStyle: 'dashed' },
-  pillText: { fontSize: 12.5, color: colors.textSoft, fontWeight: '600', flexShrink: 1 },
-  pillTextOn: { color: colors.brandDark, fontWeight: '800' },
+  pillText: { fontSize: 12.5, color: tema.textSoft, fontWeight: '600', flexShrink: 1 },
+  pillTextOn: { color: tema.brandDark, fontWeight: '800' },
 
   dot: { width: 11, height: 11, borderRadius: 6 },
   dotSm: { width: 9, height: 9, borderRadius: 5 },
   cursoFijo: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
-  cursoFijoText: { fontSize: 14.5, fontWeight: '700', color: colors.text, flexShrink: 1 },
+  cursoFijoText: { fontSize: 14.5, fontWeight: '700', color: tema.text, flexShrink: 1 },
 
   swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   swatch: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: 'transparent' },
-  swatchOn: { borderColor: colors.text },
+  swatchOn: { borderColor: tema.text },
 
   row: { flexDirection: 'row', gap: 10 },
   field: { flex: 1 },
   timeBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderWidth: 1, borderColor: colors.border, borderRadius: 12,
+    borderWidth: 1, borderColor: tema.border, borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 11,
   },
-  timeBtnMal: { borderColor: colors.red },
-  timeText: { fontSize: 14, color: colors.brand, fontWeight: '700', flex: 1 },
-  timeTextVacio: { color: colors.textFaint, fontWeight: '500' },
+  timeBtnMal: { borderColor: tema.red },
+  timeText: { fontSize: 14, color: tema.brand, fontWeight: '700', flex: 1 },
+  timeTextVacio: { color: tema.textFaint, fontWeight: '500' },
 
   warn: {
     flexDirection: 'row', gap: 9, marginTop: 16, padding: 11,
-    borderRadius: 12, backgroundColor: colors.amberBg,
+    borderRadius: 12, backgroundColor: tema.amberBg,
   },
-  warnTitle: { fontSize: 12.5, fontWeight: '700', color: colors.text },
-  warnItem: { fontSize: 11.5, color: colors.textSoft, marginTop: 2 },
-  warnNote: { fontSize: 11, color: colors.textFaint, marginTop: 5 },
-  error: { fontSize: 12.5, fontWeight: '700', color: colors.amber, marginTop: 14 },
-  errorSuave: { color: colors.textSoft, fontWeight: '600' },
+  warnTitle: { fontSize: 12.5, fontWeight: '700', color: tema.text },
+  warnItem: { fontSize: 11.5, color: tema.textSoft, marginTop: 2 },
+  warnNote: { fontSize: 11, color: tema.textFaint, marginTop: 5 },
+  error: { fontSize: 12.5, fontWeight: '700', color: tema.amber, marginTop: 14 },
+  errorSuave: { color: tema.textSoft, fontWeight: '600' },
 
   btns: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 },
   del: {
     paddingVertical: 11, paddingHorizontal: 14,
-    borderRadius: 12, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 12, borderWidth: 1, borderColor: tema.border,
   },
   sec: {
     paddingVertical: 11, paddingHorizontal: 14,
-    borderRadius: 12, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 12, borderWidth: 1, borderColor: tema.border,
   },
-  secText: { color: colors.text, fontWeight: '700', fontSize: 13.5 },
-  ok: { flex: 1, backgroundColor: colors.brand, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  secText: { color: tema.text, fontWeight: '700', fontSize: 13.5 },
+  ok: { flex: 1, backgroundColor: tema.brand, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
   okOff: { opacity: 0.45 },
   okText: { color: '#fff', fontWeight: '800', fontSize: 14.5 },
 })

@@ -11,7 +11,8 @@ import { analyzeCourse, effectiveScale, effectiveRound, neededOnNext, fmtGrade, 
 import { evalEffectiveDate, weekFromDate, notifyFireAt } from '../lib/notify.js'
 import { Card, Badge, Progress, NumField, Icon, InfoButton } from '../components/ui.js'
 import ScheduleSheet from '../components/ScheduleSheet.js'
-import { colors, palette, statusColor } from '../theme.js'
+import { palette } from '../theme.js'
+import { useStyles } from '../lib/useTheme.js'
 import { TYPES, OTHER, MAX_TIPO, isCustomType } from '../lib/evalTypes.js'
 import {
   WEEK_ORDER, dayName, MODE_LABEL,
@@ -33,6 +34,7 @@ const STEP_INFO = {
 }
 
 export default function CourseDetailScreen({ course, onBack }) {
+  const { tema, styles } = useStyles(makeStyles)
   const { state, dispatch } = useStore()
   const [editing, setEditing] = useState(null) // evalId con la hoja de edición abierta
   // La clase que la hoja tiene abierta. null = cerrada; { session: null } = una
@@ -96,9 +98,9 @@ export default function CourseDetailScreen({ course, onBack }) {
     const wPct = a.asPercent ? e.weight : (e.weight || 0) * 100
     const done = e.grade != null
     const passed = done && e.grade >= scale.passing
-    const barColor = !done ? colors.border : passed ? statusColor.emerald.fg : statusColor.red.fg
-    const gradeBg = !done ? colors.slate50 : passed ? statusColor.emerald.bg : statusColor.red.bg
-    const gradeFg = !done ? colors.textFaint : passed ? statusColor.emerald.fg : statusColor.red.fg
+    const barColor = !done ? tema.border : passed ? tema.status.emerald.fg : tema.status.red.fg
+    const gradeBg = !done ? tema.slate50 : passed ? tema.status.emerald.bg : tema.status.red.bg
+    const gradeFg = !done ? tema.textFaint : passed ? tema.status.emerald.fg : tema.status.red.fg
     const metaLine = [e.type, e.week != null ? `Sem ${e.week}` : null, e.date ? fullDate(new Date(e.date)) : null]
       .filter(Boolean).join('  ·  ')
     return (
@@ -106,7 +108,7 @@ export default function CourseDetailScreen({ course, onBack }) {
         <Pressable onPress={() => setEditing(e.id)} onLongPress={drag} delayLongPress={220}
           style={[styles.evalRow, isActive && styles.evalRowActive]}>
           <Pressable onLongPress={drag} delayLongPress={120} style={styles.dragHandle} hitSlop={8}>
-            <Icon name="menu" size={17} color={colors.textFaint} />
+            <Icon name="menu" size={17} color={tema.textFaint} />
           </Pressable>
           <View style={[styles.statusBar, { backgroundColor: barColor }]} />
           <View style={styles.evalMid}>
@@ -129,7 +131,7 @@ export default function CourseDetailScreen({ course, onBack }) {
   return (
     <NestableScrollContainer contentContainerStyle={styles.container}>
       <Pressable onPress={onBack} style={styles.backRow} hitSlop={8}>
-        <Icon name="arrow-left" size={18} color={colors.brand} />
+        <Icon name="arrow-left" size={18} color={tema.brand} />
         <Text style={styles.back}>Volver</Text>
       </Pressable>
 
@@ -137,7 +139,7 @@ export default function CourseDetailScreen({ course, onBack }) {
       <Card style={{ marginBottom: 12 }}>
         <View style={styles.rowCenter}>
           <TextInput value={course.name} onChangeText={(t) => patchCourse({ name: t })} style={styles.nameInput} />
-          <Pressable onPress={confirmDelete} style={styles.iconBtn} hitSlop={8}><Icon name="trash-2" size={18} color={colors.red} /></Pressable>
+          <Pressable onPress={confirmDelete} style={styles.iconBtn} hitSlop={8}><Icon name="trash-2" size={18} color={tema.red} /></Pressable>
         </View>
         <View style={styles.paletteRow}>
           {palette.map((col) => (
@@ -186,13 +188,13 @@ export default function CourseDetailScreen({ course, onBack }) {
           {a.pendingWeight <= 0 ? (
             <Text style={styles.panelMsg}>Ya no queda nada pendiente.</Text>
           ) : a.status === 'imposible' ? (
-            <Text style={[styles.panelMsg, { color: colors.red }]}>Ya no da para {scale.passing} con lo que queda.</Text>
+            <Text style={[styles.panelMsg, { color: tema.red }]}>Ya no da para {scale.passing} con lo que queda.</Text>
           ) : a.status === 'seguro' ? (
-            <Text style={[styles.panelMsg, { color: colors.emerald }]}>Asegurado, aunque saques lo mínimo.</Text>
+            <Text style={[styles.panelMsg, { color: tema.emerald }]}>Asegurado, aunque saques lo mínimo.</Text>
           ) : (
             <>
               <Text style={styles.panelMsg}>Te falta sacar, en promedio:</Text>
-              <Text style={[styles.bigGrade, { color: colors.amber, fontSize: 30 }]}>
+              <Text style={[styles.bigGrade, { color: tema.amber, fontSize: 30 }]}>
                 {fmtGrade(Math.max(scale.min, a.neededAvgOnPending), scale)}
                 <Text style={styles.bigGradeMax}> / {scale.max}</Text>
               </Text>
@@ -204,21 +206,21 @@ export default function CourseDetailScreen({ course, onBack }) {
 
       {/* Próxima evaluación */}
       {nextEval && nextReq && a.status !== 'seguro' && a.status !== 'imposible' && (
-        <Card style={{ marginBottom: 12, borderLeftWidth: 4, borderLeftColor: colors.amber }}>
+        <Card style={{ marginBottom: 12, borderLeftWidth: 4, borderLeftColor: tema.amber }}>
           <Text style={styles.kicker}>
             PRÓXIMA{nextEval.week ? ` · SEMANA ${nextEval.week}` : ''}{nextDate ? ` · ${fmtDate(nextDate)}` : ''}
           </Text>
-          <Text style={styles.nextName}>{nextEval.name} <Text style={{ color: colors.textFaint }}>({Math.round(nextReq.weight * 100)}%)</Text></Text>
+          <Text style={styles.nextName}>{nextEval.name} <Text style={{ color: tema.textFaint }}>({Math.round(nextReq.weight * 100)}%)</Text></Text>
           {nextReq.triviallyOk ? (
-            <Text style={[styles.panelMsg, { color: colors.emerald }]}>Con cualquier nota sigues, si clavas el resto.</Text>
+            <Text style={[styles.panelMsg, { color: tema.emerald }]}>Con cualquier nota sigues, si clavas el resto.</Text>
           ) : nextReq.feasible ? (
-            <Text style={styles.panelMsg}>Mínimo aquí, sacando el máximo en lo demás: <Text style={{ color: colors.amber, fontWeight: '800' }}>{nextReq.clamped.toFixed(dec)}</Text></Text>
+            <Text style={styles.panelMsg}>Mínimo aquí, sacando el máximo en lo demás: <Text style={{ color: tema.amber, fontWeight: '800' }}>{nextReq.clamped.toFixed(dec)}</Text></Text>
           ) : (
-            <Text style={[styles.panelMsg, { color: colors.red }]}>Ni con {scale.max} aquí basta; te la juegas en varias.</Text>
+            <Text style={[styles.panelMsg, { color: tema.red }]}>Ni con {scale.max} aquí basta; te la juegas en varias.</Text>
           )}
           {nextFire && (
             <View style={styles.notifyRow}>
-              <Icon name="bell" size={13} color={colors.textFaint} />
+              <Icon name="bell" size={13} color={tema.textFaint} />
               <Text style={styles.notifyText}>
                 {nextFire.getTime() > Date.now()
                   ? `Te aviso el ${fmtDateTime(nextFire)}`
@@ -233,7 +235,7 @@ export default function CourseDetailScreen({ course, onBack }) {
       <Card style={{ marginBottom: 12 }}>
         <View style={styles.evalHead}>
           <Text style={styles.sectionTitle}>Evaluaciones</Text>
-          <Text style={[styles.pesos, (pctSum > 100.5 || pctSum < 99.5) && { color: colors.amber, fontWeight: '700' }]}>Pesos: {Math.round(pctSum)}%</Text>
+          <Text style={[styles.pesos, (pctSum > 100.5 || pctSum < 99.5) && { color: tema.amber, fontWeight: '700' }]}>Pesos: {Math.round(pctSum)}%</Text>
         </View>
 
         {course.evaluations.length > 0 && (
@@ -278,7 +280,7 @@ export default function CourseDetailScreen({ course, onBack }) {
                 isVirtual(s) && styles.classBarVirtual,
               ]} />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[styles.classTime, incompleta && { color: colors.amber }]}>
+                <Text style={[styles.classTime, incompleta && { color: tema.amber }]}>
                   {incompleta ? 'Falta la hora' : `${s.start} – ${s.end}`}
                 </Text>
                 <Text style={styles.classMeta} numberOfLines={1}>
@@ -304,7 +306,7 @@ export default function CourseDetailScreen({ course, onBack }) {
           <View style={styles.rowCenter}>
             <Text style={styles.switchLabel}>Propia</Text>
             <Switch value={course.useOwnScale} onValueChange={(v) => patchCourse({ useOwnScale: v })}
-              trackColor={{ true: colors.brand }} />
+              trackColor={{ true: tema.brand }} />
           </View>
         </View>
         {course.useOwnScale ? (
@@ -320,7 +322,7 @@ export default function CourseDetailScreen({ course, onBack }) {
                 <Text style={styles.toggleTitle}>Redondear nota final</Text>
                 <Text style={styles.hintSmall}>Redondea 10.65 a 11. Solo aquí, y manda sobre el ajuste global.</Text>
               </View>
-              <Switch value={roundOn} trackColor={{ true: colors.brand }}
+              <Switch value={roundOn} trackColor={{ true: tema.brand }}
                 onValueChange={(v) => patchCourse({ roundFinal: v })} />
             </View>
           </>
@@ -360,6 +362,7 @@ export default function CourseDetailScreen({ course, onBack }) {
 }
 
 function EvalSheet({ ev, course, asPercent, scale, onPatch, onSetDate, onClose, onDelete }) {
+  const { tema, styles } = useStyles(makeStyles)
   const [showDate, setShowDate] = useState(false)
   const [focusOther, setFocusOther] = useState(false)
   const isCustom = isCustomType(ev.type)
@@ -384,7 +387,7 @@ function EvalSheet({ ev, course, asPercent, scale, onPatch, onSetDate, onClose, 
             <View style={styles.grab} />
 
             <TextInput value={ev.name} onChangeText={(t) => onPatch({ name: t })} style={styles.sheetName}
-              placeholder="Nombre de la evaluación" placeholderTextColor={colors.textFaint} />
+              placeholder="Nombre de la evaluación" placeholderTextColor={tema.textFaint} />
 
             <Text style={styles.sheetLabel}>Tipo</Text>
             <View style={[styles.typeGrid, isCustom && { marginBottom: 8 }]}>
@@ -402,21 +405,21 @@ function EvalSheet({ ev, course, asPercent, scale, onPatch, onSetDate, onClose, 
             {isCustom && (
               <TextInput value={ev.type} onChangeText={(t) => onPatch({ type: t })}
                 style={styles.otherInput} placeholder="¿Cómo se llama este tipo?"
-                placeholderTextColor={colors.textFaint} maxLength={MAX_TIPO}
+                placeholderTextColor={tema.textFaint} maxLength={MAX_TIPO}
                 autoFocus={focusOther} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} />
             )}
 
             <Text style={styles.sheetLabel}>Fecha</Text>
             <View style={styles.rowCenter}>
               <Pressable style={styles.sheetDateBtn} onPress={() => setShowDate(true)}>
-                <Icon name="calendar" size={15} color={ev.date ? colors.brand : colors.textFaint} />
-                <Text style={[styles.sheetDateText, !ev.date && { color: colors.textFaint, fontWeight: '500' }]}>
+                <Icon name="calendar" size={15} color={ev.date ? tema.brand : tema.textFaint} />
+                <Text style={[styles.sheetDateText, !ev.date && { color: tema.textFaint, fontWeight: '500' }]}>
                   {ev.date ? fullDate(new Date(ev.date)) : 'Sin fecha'}
                 </Text>
               </Pressable>
               {ev.date ? (
                 <Pressable style={styles.sheetDateClear} hitSlop={8} onPress={() => onPatch({ date: null })}>
-                  <Icon name="x" size={15} color={colors.textFaint} />
+                  <Icon name="x" size={15} color={tema.textFaint} />
                 </Pressable>
               ) : null}
             </View>
@@ -442,7 +445,7 @@ function EvalSheet({ ev, course, asPercent, scale, onPatch, onSetDate, onClose, 
 
             <View style={styles.sheetBtns}>
               <Pressable style={styles.sheetDel} onPress={onDelete}>
-                <Icon name="trash-2" size={15} color={colors.red} />
+                <Icon name="trash-2" size={15} color={tema.red} />
                 <Text style={styles.sheetDelText}>Eliminar</Text>
               </Pressable>
               <Pressable style={styles.sheetOk} onPress={close}>
@@ -468,6 +471,7 @@ function EvalSheet({ ev, course, asPercent, scale, onPatch, onSetDate, onClose, 
 }
 
 function DateField({ label, value, onChange, minimumDate }) {
+  const { tema, styles } = useStyles(makeStyles)
   const [show, setShow] = useState(false)
   const d = value ? new Date(value) : null
   return (
@@ -475,11 +479,11 @@ function DateField({ label, value, onChange, minimumDate }) {
       <Text style={styles.scaleLabel}>{label}</Text>
       <View style={styles.dateBtnRow}>
         <Pressable style={styles.dateBtn} onPress={() => setShow(true)}>
-          <Text style={[styles.dateBtnText, !d && { color: colors.textFaint }]}>{d ? d.toLocaleDateString() : 'Elegir'}</Text>
+          <Text style={[styles.dateBtnText, !d && { color: tema.textFaint }]}>{d ? d.toLocaleDateString() : 'Elegir'}</Text>
         </Pressable>
         {d && (
           <Pressable style={styles.dateClearBtn} onPress={() => onChange(null)} hitSlop={6}>
-            <Icon name="x" size={14} color={colors.textFaint} />
+            <Icon name="x" size={14} color={tema.textFaint} />
           </Pressable>
         )}
       </View>
@@ -499,6 +503,7 @@ function DateField({ label, value, onChange, minimumDate }) {
 }
 
 function ScaleField({ label, value, onChange, info }) {
+  const { styles } = useStyles(makeStyles)
   return (
     <View style={styles.scaleField}>
       <View style={styles.scaleLabelRow}>
@@ -510,103 +515,103 @@ function ScaleField({ label, value, onChange, info }) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (tema) => StyleSheet.create({
   container: { padding: 16, paddingBottom: 40 },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  back: { color: colors.brand, fontWeight: '600' },
+  back: { color: tema.brand, fontWeight: '600' },
   scaleLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
   rowCenter: { flexDirection: 'row', alignItems: 'center' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  nameInput: { flex: 1, fontSize: 18, fontWeight: '800', color: colors.text, padding: 4 },
+  nameInput: { flex: 1, fontSize: 18, fontWeight: '800', color: tema.text, padding: 4 },
   iconBtn: { padding: 6 },
   paletteRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   swatch: { width: 26, height: 26, borderRadius: 13 },
-  swatchActive: { borderWidth: 3, borderColor: colors.text },
+  swatchActive: { borderWidth: 3, borderColor: tema.text },
   datesRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  datesHint: { fontSize: 12, color: colors.textSoft, marginTop: 8 },
+  datesHint: { fontSize: 12, color: tema.textSoft, marginTop: 8 },
   dateField: { flex: 1 },
   dateBtnRow: { flexDirection: 'row', alignItems: 'center' },
-  dateBtn: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 10 },
-  dateBtnText: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  dateBtn: { flex: 1, borderWidth: 1, borderColor: tema.border, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 10 },
+  dateBtnText: { color: tema.text, fontSize: 14, fontWeight: '600' },
   dateClearBtn: { paddingHorizontal: 8, paddingVertical: 6 },
-  kicker: { fontSize: 11, fontWeight: '700', color: colors.textFaint, letterSpacing: 0.5 },
+  kicker: { fontSize: 11, fontWeight: '700', color: tema.textFaint, letterSpacing: 0.5 },
   bigGrade: { fontSize: 34, fontWeight: '800', marginVertical: 6 },
-  bigGradeMax: { fontSize: 15, fontWeight: '400', color: colors.textFaint },
-  hintSmall: { fontSize: 12, color: colors.textSoft, marginTop: 8 },
+  bigGradeMax: { fontSize: 15, fontWeight: '400', color: tema.textFaint },
+  hintSmall: { fontSize: 12, color: tema.textSoft, marginTop: 8 },
   grid2: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   gridItem: { flex: 1 },
-  panelMsg: { fontSize: 13, color: colors.textSoft, marginTop: 8 },
+  panelMsg: { fontSize: 13, color: tema.textSoft, marginTop: 8 },
   miniRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  miniBox: { flex: 1, backgroundColor: colors.slate50, borderRadius: 10, padding: 8 },
-  miniLabel: { fontSize: 11, color: colors.textFaint },
-  miniVal: { fontSize: 14, fontWeight: '700', color: colors.text },
-  nextName: { fontSize: 15, fontWeight: '700', color: colors.text, marginTop: 4 },
-  notifyRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.slate50 },
-  notifyText: { fontSize: 12, color: colors.textSoft, flexShrink: 1 },
+  miniBox: { flex: 1, backgroundColor: tema.slate50, borderRadius: 10, padding: 8 },
+  miniLabel: { fontSize: 11, color: tema.textFaint },
+  miniVal: { fontSize: 14, fontWeight: '700', color: tema.text },
+  nextName: { fontSize: 15, fontWeight: '700', color: tema.text, marginTop: 4 },
+  notifyRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: tema.slate50 },
+  notifyText: { fontSize: 12, color: tema.textSoft, flexShrink: 1 },
   evalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
-  pesos: { fontSize: 12, color: colors.textFaint },
-  reorderHint: { fontSize: 11, color: colors.textFaint, marginBottom: 8, lineHeight: 15 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: tema.text },
+  pesos: { fontSize: 12, color: tema.textFaint },
+  reorderHint: { fontSize: 11, color: tema.textFaint, marginBottom: 8, lineHeight: 15 },
   // --- fila de lectura ---
-  evalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.slate50, backgroundColor: colors.card },
-  evalRowActive: { backgroundColor: colors.slate50, borderRadius: 12 },
+  evalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: tema.slate50, backgroundColor: tema.card },
+  evalRowActive: { backgroundColor: tema.slate50, borderRadius: 12 },
   dragHandle: { width: 20, alignItems: 'center', justifyContent: 'center' },
   statusBar: { width: 3, alignSelf: 'stretch', borderRadius: 2, opacity: 0.8 },
   evalMid: { flex: 1, minWidth: 0 },
-  evalTitle: { fontSize: 14.5, fontWeight: '700', color: colors.text },
-  evalMeta: { fontSize: 11.5, color: colors.textSoft, marginTop: 3 },
-  evalWeight: { fontSize: 11.5, color: colors.textFaint, fontWeight: '600' },
+  evalTitle: { fontSize: 14.5, fontWeight: '700', color: tema.text },
+  evalMeta: { fontSize: 11.5, color: tema.textSoft, marginTop: 3 },
+  evalWeight: { fontSize: 11.5, color: tema.textFaint, fontWeight: '600' },
   gradeBox: { minWidth: 52, paddingHorizontal: 6, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  gradeBoxPend: { borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border },
+  gradeBoxPend: { borderWidth: 1, borderStyle: 'dashed', borderColor: tema.border },
   gradeText: { fontSize: 17, fontWeight: '800' },
-  gradePendText: { fontSize: 10, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.4 },
+  gradePendText: { fontSize: 10, fontWeight: '700', color: tema.textFaint, textTransform: 'uppercase', letterSpacing: 0.4 },
 
   // --- hoja de edición ---
   sheetRoot: { flex: 1, backgroundColor: 'rgba(51,45,42,0.42)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 28 },
-  grab: { width: 38, height: 4, borderRadius: 2, backgroundColor: colors.slate100, alignSelf: 'center', marginBottom: 14 },
-  sheetName: { fontSize: 17, fontWeight: '800', color: colors.text, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 6, marginBottom: 14 },
-  sheetLabel: { fontSize: 10, fontWeight: '700', color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+  sheet: { backgroundColor: tema.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, paddingBottom: 28 },
+  grab: { width: 38, height: 4, borderRadius: 2, backgroundColor: tema.slate100, alignSelf: 'center', marginBottom: 14 },
+  sheetName: { fontSize: 17, fontWeight: '800', color: tema.text, borderBottomWidth: 1, borderBottomColor: tema.border, paddingVertical: 6, marginBottom: 14 },
+  sheetLabel: { fontSize: 10, fontWeight: '700', color: tema.textFaint, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
   typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 16 },
-  typePill: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.slate50, borderWidth: 1, borderColor: colors.border },
-  typePillOn: { backgroundColor: colors.brandLight, borderColor: colors.brand },
-  typePillText: { fontSize: 12.5, color: colors.textSoft, fontWeight: '600' },
-  typePillTextOn: { color: colors.brandDark, fontWeight: '800' },
-  otherInput: { borderWidth: 1, borderColor: colors.brand, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.text, backgroundColor: colors.card, marginBottom: 16 },
-  sheetDateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 },
-  sheetDateText: { fontSize: 14, color: colors.brand, fontWeight: '700' },
+  typePill: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999, backgroundColor: tema.slate50, borderWidth: 1, borderColor: tema.border },
+  typePillOn: { backgroundColor: tema.brandLight, borderColor: tema.brand },
+  typePillText: { fontSize: 12.5, color: tema.textSoft, fontWeight: '600' },
+  typePillTextOn: { color: tema.brandDark, fontWeight: '800' },
+  otherInput: { borderWidth: 1, borderColor: tema.brand, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: tema.text, backgroundColor: tema.card, marginBottom: 16 },
+  sheetDateBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: tema.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11 },
+  sheetDateText: { fontSize: 14, color: tema.brand, fontWeight: '700' },
   // Igual que sheetDateBtn pero SIN flex: 1. El de fecha vive en una fila,
   // donde flex:1 reparte ancho; el de hora vive en una columna (sheetField),
   // donde flex:1 vale flexBasis 0 y aplasta el botón hasta ocultar la hora.
   sheetDateClear: { width: 34, alignItems: 'center' },
   sheetRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
   sheetField: { flex: 1 },
-  sheetInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 8, fontSize: 15, color: colors.text, textAlign: 'center', backgroundColor: colors.card },
-  sheetHint: { fontSize: 11, color: colors.textFaint, marginTop: 8 },
+  sheetInput: { borderWidth: 1, borderColor: tema.border, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 8, fontSize: 15, color: tema.text, textAlign: 'center', backgroundColor: tema.card },
+  sheetHint: { fontSize: 11, color: tema.textFaint, marginTop: 8 },
   sheetBtns: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 },
-  sheetDel: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
-  sheetDelText: { color: colors.red, fontWeight: '700', fontSize: 14 },
-  sheetOk: { flex: 1, alignItems: 'center', paddingVertical: 13, borderRadius: 12, backgroundColor: colors.brand },
+  sheetDel: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: tema.border },
+  sheetDelText: { color: tema.red, fontWeight: '700', fontSize: 14 },
+  sheetOk: { flex: 1, alignItems: 'center', paddingVertical: 13, borderRadius: 12, backgroundColor: tema.brand },
   sheetOkText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  addEval: { marginTop: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  addEvalText: { color: colors.brand, fontWeight: '600' },
-  switchLabel: { fontSize: 13, color: colors.textSoft, marginRight: 6 },
-  roundRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, backgroundColor: colors.slate50, borderRadius: 12, padding: 12 },
-  toggleTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
+  addEval: { marginTop: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: tema.border, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  addEvalText: { color: tema.brand, fontWeight: '600' },
+  switchLabel: { fontSize: 13, color: tema.textSoft, marginRight: 6 },
+  roundRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, backgroundColor: tema.slate50, borderRadius: 12, padding: 12 },
+  toggleTitle: { fontSize: 14, fontWeight: '700', color: tema.text, marginBottom: 2 },
   scaleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   scaleField: { flexGrow: 1, minWidth: 70 },
-  scaleLabel: { fontSize: 11, color: colors.textSoft, marginBottom: 4 },
-  scaleInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 8, textAlign: 'center', color: colors.text },
+  scaleLabel: { fontSize: 11, color: tema.textSoft, marginBottom: 4 },
+  scaleInput: { borderWidth: 1, borderColor: tema.border, borderRadius: 10, paddingVertical: 8, textAlign: 'center', color: tema.text },
 
   // --- clases del horario ---
-  classRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderTopWidth: 1, borderTopColor: colors.slate50 },
-  classDay: { width: 34, fontSize: 12.5, fontWeight: '800', color: colors.text },
+  classRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderTopWidth: 1, borderTopColor: tema.slate50 },
+  classDay: { width: 34, fontSize: 12.5, fontWeight: '800', color: tema.text },
   classBar: { width: 4, alignSelf: 'stretch', borderRadius: 3 },
   // Virtual: la misma barra, atenuada. El borde punteado sobre 4 px de ancho
   // se veía como una escalerita de puntos en vez de una línea.
   classBarVirtual: { opacity: 0.4 },
-  classTime: { fontSize: 14, fontWeight: '700', color: colors.text },
-  classMeta: { fontSize: 11.5, color: colors.textSoft, marginTop: 2 },
-  classTag: { backgroundColor: colors.slate100, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
-  classTagText: { fontSize: 10.5, fontWeight: '700', color: colors.textSoft },
+  classTime: { fontSize: 14, fontWeight: '700', color: tema.text },
+  classMeta: { fontSize: 11.5, color: tema.textSoft, marginTop: 2 },
+  classTag: { backgroundColor: tema.slate100, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  classTagText: { fontSize: 10.5, fontWeight: '700', color: tema.textSoft },
 })

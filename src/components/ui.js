@@ -1,14 +1,16 @@
 import React, { useState, useId, forwardRef } from 'react'
 import { View, Text, Pressable, Modal, TextInput, InputAccessoryView, Keyboard, Platform, StyleSheet } from 'react-native'
 import { Feather } from '@expo/vector-icons'
-import { colors, statusColor } from '../theme.js'
+import { useStyles, useTheme } from '../lib/useTheme.js'
 
 // Ícono base de la app (Feather, incluido en Expo)
-export function Icon({ name, size = 18, color = colors.text, style }) {
-  return <Feather name={name} size={size} color={color} style={style} />
+export function Icon({ name, size = 18, color, style }) {
+  const tema = useTheme()
+  return <Feather name={name} size={size} color={color ?? tema.text} style={style} />
 }
 
 export function Card({ children, style }) {
+  const { styles } = useStyles(makeStyles)
   return <View style={[styles.card, style]}>{children}</View>
 }
 
@@ -29,6 +31,7 @@ export const NumField = forwardRef(function NumField({
   onNext,          // callback para saltar al siguiente campo (enter / barra iOS)
   nextLabel = 'Siguiente ▸',
 }, ref) {
+  const { tema, styles } = useStyles(makeStyles)
   const [focused, setFocused] = useState(false)
   const [text, setText] = useState('')
   const accId = 'num-' + useId()
@@ -63,7 +66,7 @@ export const NumField = forwardRef(function NumField({
         ref={ref}
         style={style}
         placeholder={placeholder}
-        placeholderTextColor={colors.textFaint}
+        placeholderTextColor={tema.textFaint}
         keyboardType={integer ? 'number-pad' : 'decimal-pad'}
         value={displayed}
         returnKeyType={onNext ? 'next' : undefined}
@@ -88,7 +91,8 @@ export const NumField = forwardRef(function NumField({
 })
 
 export function Badge({ color = 'slate', children }) {
-  const c = statusColor[color] || statusColor.slate
+  const { tema, styles } = useStyles(makeStyles)
+  const c = tema.status[color] || tema.status.slate
   return (
     <View style={[styles.badge, { backgroundColor: c.bg }]}>
       <Text style={[styles.badgeText, { color: c.fg }]}>{children}</Text>
@@ -97,12 +101,13 @@ export function Badge({ color = 'slate', children }) {
 }
 
 // Barra de progreso con marca de umbral
-export function Progress({ value, max, color = colors.brand, threshold }) {
+export function Progress({ value, max, color, threshold }) {
+  const { tema, styles } = useStyles(makeStyles)
   const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0
   const tpct = threshold != null && max > 0 ? (threshold / max) * 100 : null
   return (
     <View style={styles.progressTrack}>
-      <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: color }]} />
+      <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: color ?? tema.brand }]} />
       {tpct != null && <View style={[styles.progressMark, { left: `${tpct}%` }]} />}
     </View>
   )
@@ -110,6 +115,7 @@ export function Progress({ value, max, color = colors.brand, threshold }) {
 
 // Selector modal simple (para tipo de evaluación)
 export function PickerModal({ visible, options, value, onSelect, onClose, title }) {
+  const { tema, styles } = useStyles(makeStyles)
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
@@ -117,8 +123,8 @@ export function PickerModal({ visible, options, value, onSelect, onClose, title 
           {title ? <Text style={styles.modalTitle}>{title}</Text> : null}
           {options.map((opt) => (
             <Pressable key={opt} style={styles.modalRow} onPress={() => { onSelect(opt); onClose() }}>
-              <Text style={[styles.modalRowText, opt === value && { color: colors.brand, fontWeight: '700' }]}>{opt}</Text>
-              {opt === value ? <Icon name="check" size={18} color={colors.brand} /> : null}
+              <Text style={[styles.modalRowText, opt === value && { color: tema.brand, fontWeight: '700' }]}>{opt}</Text>
+              {opt === value ? <Icon name="check" size={18} color={tema.brand} /> : null}
             </Pressable>
           ))}
         </View>
@@ -129,11 +135,12 @@ export function PickerModal({ visible, options, value, onSelect, onClose, title 
 
 // Botón de información (ⓘ) que abre una explicación breve en un modal.
 export function InfoButton({ title, text, size = 16 }) {
+  const { tema, styles } = useStyles(makeStyles)
   const [open, setOpen] = useState(false)
   return (
     <>
       <Pressable onPress={() => setOpen(true)} hitSlop={8}>
-        <Icon name="info" size={size} color={colors.textFaint} />
+        <Icon name="info" size={size} color={tema.textFaint} />
       </Pressable>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
@@ -150,10 +157,10 @@ export function InfoButton({ title, text, size = 16 }) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (tema) => StyleSheet.create({
   card: {
-    backgroundColor: colors.card, borderRadius: 18, padding: 16,
-    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: tema.card, borderRadius: 18, padding: 16,
+    borderWidth: 1, borderColor: tema.border,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1,
   },
   badge: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
@@ -162,16 +169,16 @@ const styles = StyleSheet.create({
   progressFill: { height: 10, borderRadius: 999 },
   progressMark: { position: 'absolute', width: 2, height: 14, backgroundColor: '#64748b', borderRadius: 1 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(51,45,42,0.42)', justifyContent: 'center', padding: 32 },
-  modalSheet: { backgroundColor: colors.card, borderRadius: 16, paddingVertical: 8 },
-  modalTitle: { fontWeight: '700', color: colors.text, paddingHorizontal: 16, paddingVertical: 8 },
+  modalSheet: { backgroundColor: tema.card, borderRadius: 16, paddingVertical: 8 },
+  modalTitle: { fontWeight: '700', color: tema.text, paddingHorizontal: 16, paddingVertical: 8 },
   modalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
-  modalRowText: { fontSize: 16, color: colors.text },
-  infoSheet: { backgroundColor: colors.card, borderRadius: 16, padding: 20 },
-  infoTitle: { fontWeight: '800', color: colors.text, fontSize: 16, marginBottom: 8 },
-  infoText: { fontSize: 14, color: colors.textSoft, lineHeight: 21 },
-  infoBtn: { alignSelf: 'flex-end', marginTop: 16, backgroundColor: colors.brand, borderRadius: 10, paddingHorizontal: 18, paddingVertical: 9 },
+  modalRowText: { fontSize: 16, color: tema.text },
+  infoSheet: { backgroundColor: tema.card, borderRadius: 16, padding: 20 },
+  infoTitle: { fontWeight: '800', color: tema.text, fontSize: 16, marginBottom: 8 },
+  infoText: { fontSize: 14, color: tema.textSoft, lineHeight: 21 },
+  infoBtn: { alignSelf: 'flex-end', marginTop: 16, backgroundColor: tema.brand, borderRadius: 10, paddingHorizontal: 18, paddingVertical: 9 },
   infoBtnText: { color: '#fff', fontWeight: '700' },
-  accBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f1ebe0', paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.border },
-  accDone: { color: colors.textSoft, fontWeight: '600', fontSize: 15 },
-  accNext: { color: colors.brand, fontWeight: '800', fontSize: 15 },
+  accBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f1ebe0', paddingHorizontal: 16, paddingVertical: 8, borderTopWidth: 1, borderTopColor: tema.border },
+  accDone: { color: tema.textSoft, fontWeight: '600', fontSize: 15 },
+  accNext: { color: tema.brand, fontWeight: '800', fontSize: 15 },
 })

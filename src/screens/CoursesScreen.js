@@ -3,9 +3,10 @@ import { ScrollView, View, Text, Pressable, Modal, StyleSheet } from 'react-nati
 import { useStore } from '../lib/store.js'
 import { analyzeCourse, effectiveScale, effectiveRound, fmtGrade, STATUS_META } from '../lib/calc.js'
 import { Card, Badge, Progress, Icon } from '../components/ui.js'
-import { colors } from '../theme.js'
+import { useStyles } from '../lib/useTheme.js'
 
 export default function CoursesScreen({ onOpen, onCreate }) {
+  const { tema, styles } = useStyles(makeStyles)
   const { state, dispatch } = useStore()
   const [menuFor, setMenuFor] = useState(null) // curso con menú abierto
   const menuCourse = state.courses.find((c) => c.id === menuFor)
@@ -39,7 +40,7 @@ export default function CoursesScreen({ onOpen, onCreate }) {
                 <View style={styles.headRight}>
                   <Badge color={meta.color}>{meta.label}</Badge>
                   <Pressable style={styles.moreBtn} hitSlop={8} onPress={() => setMenuFor(c.id)}>
-                    <Icon name="more-vertical" size={18} color={colors.textFaint} />
+                    <Icon name="more-vertical" size={18} color={tema.textFaint} />
                   </Pressable>
                 </View>
               </View>
@@ -69,7 +70,7 @@ export default function CoursesScreen({ onOpen, onCreate }) {
           <View style={styles.menuSheet}>
             {menuCourse && <Text style={styles.menuTitle} numberOfLines={1}>{menuCourse.name}</Text>}
             <Pressable style={styles.menuItem} onPress={() => { const id = menuFor; setMenuFor(null); dispatch({ type: 'DELETE_COURSE', id }) }}>
-              <Icon name="trash-2" size={17} color={colors.red} />
+              <Icon name="trash-2" size={17} color={tema.red} />
               <Text style={styles.menuItemText}>Eliminar</Text>
             </Pressable>
           </View>
@@ -79,28 +80,28 @@ export default function CoursesScreen({ onOpen, onCreate }) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (tema) => StyleSheet.create({
   container: { padding: 16, paddingBottom: 40 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   rowCenter: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
-  h2: { fontSize: 17, fontWeight: '700', color: colors.text },
-  addBtn: { backgroundColor: colors.brand, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  h2: { fontSize: 17, fontWeight: '700', color: tema.text },
+  addBtn: { backgroundColor: tema.brand, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  empty: { color: colors.textSoft, textAlign: 'center', paddingVertical: 16 },
+  empty: { color: tema.textSoft, textAlign: 'center', paddingVertical: 16 },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   headRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   moreBtn: { padding: 2 },
   dot: { width: 12, height: 12, borderRadius: 6, marginRight: 8 },
-  courseName: { fontWeight: '700', color: colors.text, fontSize: 15, flexShrink: 1 },
+  courseName: { fontWeight: '700', color: tema.text, fontSize: 15, flexShrink: 1 },
   gradeRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 6 },
-  gradeLabel: { color: colors.textSoft, fontSize: 13 },
+  gradeLabel: { color: tema.textSoft, fontSize: 13 },
   gradeVal: { fontSize: 22, fontWeight: '800' },
-  gradeMax: { fontSize: 13, fontWeight: '400', color: colors.textFaint },
+  gradeMax: { fontSize: 13, fontWeight: '400', color: tema.textFaint },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  metaText: { fontSize: 12, color: colors.textSoft },
+  metaText: { fontSize: 12, color: tema.textSoft },
   menuBackdrop: { flex: 1, backgroundColor: 'rgba(51,45,42,0.42)', justifyContent: 'center', paddingHorizontal: 48 },
-  menuSheet: { backgroundColor: colors.card, borderRadius: 16, paddingVertical: 6 },
-  menuTitle: { fontSize: 13, fontWeight: '700', color: colors.textFaint, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
+  menuSheet: { backgroundColor: tema.card, borderRadius: 16, paddingVertical: 6 },
+  menuTitle: { fontSize: 13, fontWeight: '700', color: tema.textFaint, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 14 },
-  menuItemText: { fontSize: 16, color: colors.red, fontWeight: '700' },
+  menuItemText: { fontSize: 16, color: tema.red, fontWeight: '700' },
 })

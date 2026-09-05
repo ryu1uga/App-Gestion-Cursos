@@ -4,9 +4,10 @@ import { useStore } from '../lib/store.js'
 import { evalEffectiveDate } from '../lib/notify.js'
 import { Card, Badge } from '../components/ui.js'
 import Calendar from '../components/Calendar.js'
-import { colors } from '../theme.js'
+import { useStyles } from '../lib/useTheme.js'
 
 export default function ScheduleScreen({ onOpen }) {
+  const { styles } = useStyles(makeStyles)
   const { state } = useStore()
   const [view, setView] = useState('semana') // 'semana' | 'calendario'
   const weeks = state.settings.semesterWeeks || 16
@@ -90,24 +91,24 @@ export default function ScheduleScreen({ onOpen }) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (tema) => StyleSheet.create({
   container: { padding: 16, paddingBottom: 40 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  h2: { fontSize: 17, fontWeight: '700', color: colors.text },
-  sub: { fontSize: 13, color: colors.textSoft },
-  toggle: { flexDirection: 'row', backgroundColor: colors.slate100, borderRadius: 10, padding: 3 },
+  h2: { fontSize: 17, fontWeight: '700', color: tema.text },
+  sub: { fontSize: 13, color: tema.textSoft },
+  toggle: { flexDirection: 'row', backgroundColor: tema.slate100, borderRadius: 10, padding: 3 },
   segBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  segBtnOn: { backgroundColor: colors.card },
-  segText: { fontSize: 12, fontWeight: '700', color: colors.textFaint },
-  segTextOn: { color: colors.brand },
-  empty: { color: colors.textSoft, textAlign: 'center', paddingVertical: 16 },
+  segBtnOn: { backgroundColor: tema.card },
+  segText: { fontSize: 12, fontWeight: '700', color: tema.textFaint },
+  segTextOn: { color: tema.brand },
+  empty: { color: tema.textSoft, textAlign: 'center', paddingVertical: 16 },
   weekHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  weekNum: { width: 30, height: 30, borderRadius: 8, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  weekNum: { width: 30, height: 30, borderRadius: 8, backgroundColor: tema.brand, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
   weekNumText: { color: '#fff', fontWeight: '800' },
-  weekTitle: { fontWeight: '700', color: colors.text },
-  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.slate50 },
+  weekTitle: { fontWeight: '700', color: tema.text },
+  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: tema.slate50 },
   dot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
-  itemCourse: { fontWeight: '600', color: colors.text, fontSize: 13 },
-  itemEval: { color: colors.textSoft, fontSize: 13, flexShrink: 1 },
-  sinTitle: { fontSize: 13, fontWeight: '700', color: colors.textSoft, marginBottom: 4 },
+  itemCourse: { fontWeight: '600', color: tema.text, fontSize: 13 },
+  itemEval: { color: tema.textSoft, fontSize: 13, flexShrink: 1 },
+  sinTitle: { fontSize: 13, fontWeight: '700', color: tema.textSoft, marginBottom: 4 },
 })

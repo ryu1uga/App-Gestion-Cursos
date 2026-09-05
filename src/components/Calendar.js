@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { Icon, Badge } from './ui.js'
-import { colors } from '../theme.js'
+import { useStyles } from '../lib/useTheme.js'
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -11,6 +11,7 @@ const keyOf = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
 
 // items: [{ date: Date, courseName, courseColor, courseId, type, name, grade }]
 export default function Calendar({ items = [], onOpen }) {
+  const { tema, styles } = useStyles(makeStyles)
   const today = new Date()
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [selected, setSelected] = useState(null)
@@ -40,9 +41,9 @@ export default function Calendar({ items = [], onOpen }) {
   return (
     <View>
       <View style={styles.header}>
-        <Pressable onPress={() => goMonth(-1)} hitSlop={10} style={styles.navBtn}><Icon name="chevron-left" size={20} color={colors.text} /></Pressable>
+        <Pressable onPress={() => goMonth(-1)} hitSlop={10} style={styles.navBtn}><Icon name="chevron-left" size={20} color={tema.text} /></Pressable>
         <Text style={styles.monthTitle}>{MESES[month]} {year}</Text>
-        <Pressable onPress={() => goMonth(1)} hitSlop={10} style={styles.navBtn}><Icon name="chevron-right" size={20} color={colors.text} /></Pressable>
+        <Pressable onPress={() => goMonth(1)} hitSlop={10} style={styles.navBtn}><Icon name="chevron-right" size={20} color={tema.text} /></Pressable>
       </View>
 
       <View style={styles.weekRow}>
@@ -90,27 +91,27 @@ export default function Calendar({ items = [], onOpen }) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (tema) => StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   navBtn: { padding: 4 },
-  monthTitle: { fontSize: 16, fontWeight: '800', color: colors.text, textTransform: 'capitalize' },
+  monthTitle: { fontSize: 16, fontWeight: '800', color: tema.text, textTransform: 'capitalize' },
   weekRow: { flexDirection: 'row', marginBottom: 4 },
-  weekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', color: colors.textFaint },
+  weekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', color: tema.textFaint },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 2 },
   dayCircle: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  dayToday: { backgroundColor: colors.brandLight },
-  daySel: { backgroundColor: colors.brand },
-  dayNum: { fontSize: 13, color: colors.text, fontWeight: '600' },
-  dayTodayText: { color: colors.brand, fontWeight: '800' },
+  dayToday: { backgroundColor: tema.brandLight },
+  daySel: { backgroundColor: tema.brand },
+  dayNum: { fontSize: 13, color: tema.text, fontWeight: '600' },
+  dayTodayText: { color: tema.brand, fontWeight: '800' },
   daySelText: { color: '#fff', fontWeight: '800' },
   dotsRow: { flexDirection: 'row', gap: 2, height: 6, marginTop: 2 },
   evDot: { width: 5, height: 5, borderRadius: 3 },
-  dayPanel: { marginTop: 12, borderTopWidth: 1, borderTopColor: colors.slate100, paddingTop: 10 },
-  dayPanelTitle: { fontSize: 13, fontWeight: '700', color: colors.textSoft, marginBottom: 6, textTransform: 'capitalize' },
-  dayEmpty: { fontSize: 13, color: colors.textFaint, paddingVertical: 8 },
-  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.slate50 },
+  dayPanel: { marginTop: 12, borderTopWidth: 1, borderTopColor: tema.slate100, paddingTop: 10 },
+  dayPanelTitle: { fontSize: 13, fontWeight: '700', color: tema.textSoft, marginBottom: 6, textTransform: 'capitalize' },
+  dayEmpty: { fontSize: 13, color: tema.textFaint, paddingVertical: 8 },
+  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: tema.slate50 },
   itemDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
-  itemCourse: { fontWeight: '600', color: colors.text, fontSize: 13 },
-  itemEval: { color: colors.textSoft, fontSize: 13, flexShrink: 1 },
+  itemCourse: { fontWeight: '600', color: tema.text, fontSize: 13 },
+  itemEval: { color: tema.textSoft, fontSize: 13, flexShrink: 1 },
 })

@@ -4,7 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { useStore, exportJSON, downloadJSON, importJSON } from '../lib/store.js'
 import { ensurePermission } from '../lib/notify.js'
 import { Card, NumField, Icon, InfoButton } from '../components/ui.js'
-import { colors } from '../theme.js'
+import { useStyles, THEME_MODES, THEME_LABEL } from '../lib/useTheme.js'
 
 const two = (n) => String(n).padStart(2, '0')
 
@@ -14,6 +14,7 @@ const STEP_INFO = {
 }
 
 export default function SettingsScreen() {
+  const { tema, styles } = useStyles(makeStyles)
   const { state, dispatch } = useStore()
   const s = state.settings
   const [showTime, setShowTime] = useState(false)
@@ -49,6 +50,22 @@ export default function SettingsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Card style={{ marginBottom: 12 }}>
+        <Text style={styles.h2}>Apariencia</Text>
+        <Text style={styles.p}>Con “Sistema” la app sigue el tema de tu teléfono y se oscurece sola de noche si lo tienes configurado así.</Text>
+        <View style={styles.segmento}>
+          {THEME_MODES.map((m) => {
+            const activo = (s.theme ?? 'system') === m
+            return (
+              <Pressable key={m} onPress={() => dispatch({ type: 'UPDATE_SETTINGS', patch: { theme: m } })}
+                style={[styles.segBtn, activo && styles.segBtnOn]}>
+                <Text style={[styles.segTexto, activo && styles.segTextoOn]}>{THEME_LABEL[m]}</Text>
+              </Pressable>
+            )
+          })}
+        </View>
+      </Card>
+
+      <Card style={{ marginBottom: 12 }}>
         <Text style={styles.h2}>Escala global por defecto</Text>
         <Text style={styles.p}>Se usa en los cursos que no tienen escala propia. Tu facultad usa 0–20 y aprueba con 11; otra quizá 0–7 con 4.</Text>
         <View style={styles.grid}>
@@ -63,7 +80,7 @@ export default function SettingsScreen() {
             <Text style={styles.toggleTitle}>Redondear la nota final</Text>
             <Text style={styles.p}>Ajusta la nota final al paso de tu escala (a enteros, medios o decimales, según tu configuración). Actívalo si tu facultad redondea; apágalo para el promedio exacto.</Text>
           </View>
-          <Switch value={s.roundFinal !== false} trackColor={{ true: colors.brand }}
+          <Switch value={s.roundFinal !== false} trackColor={{ true: tema.brand }}
             onValueChange={(v) => dispatch({ type: 'UPDATE_SETTINGS', patch: { roundFinal: v } })} />
         </View>
       </Card>
@@ -83,7 +100,7 @@ export default function SettingsScreen() {
             <Text style={styles.toggleTitle}>Activar avisos</Text>
             <Text style={styles.p}>Un recordatorio antes de cada una.</Text>
           </View>
-          <Switch value={s.notificationsOn === true} trackColor={{ true: colors.brand }}
+          <Switch value={s.notificationsOn === true} trackColor={{ true: tema.brand }}
             onValueChange={toggleNotifications} />
         </View>
         {s.notificationsOn === true && (
@@ -94,7 +111,7 @@ export default function SettingsScreen() {
               <View style={styles.field}>
                 <View style={styles.fieldLabelRow}><Text style={styles.fieldLabel}>Hora del aviso</Text></View>
                 <Pressable style={styles.timeBtn} onPress={() => setShowTime(true)}>
-                  <Icon name="clock" size={15} color={colors.textSoft} />
+                  <Icon name="clock" size={15} color={tema.textSoft} />
                   <Text style={styles.timeBtnText}>{two(s.notifyHour ?? 9)}:{two(s.notifyMinute ?? 0)}</Text>
                 </Pressable>
               </View>
@@ -126,11 +143,11 @@ export default function SettingsScreen() {
             <Text style={styles.btnPrimaryText} numberOfLines={1}>Descargar</Text>
           </Pressable>
           <Pressable style={[styles.btnGhost, styles.btnFlex]} onPress={doExport}>
-            <Icon name="share-2" size={16} color={colors.text} />
+            <Icon name="share-2" size={16} color={tema.text} />
             <Text style={styles.btnGhostText} numberOfLines={1}>Compartir</Text>
           </Pressable>
           <Pressable style={[styles.btnGhost, styles.btnFlex]} onPress={doImport}>
-            <Icon name="upload" size={16} color={colors.text} />
+            <Icon name="upload" size={16} color={tema.text} />
             <Text style={styles.btnGhostText} numberOfLines={1}>Importar</Text>
           </Pressable>
         </View>
@@ -140,7 +157,7 @@ export default function SettingsScreen() {
         <Text style={styles.h2}>Ayuda</Text>
         <Text style={styles.p}>¿Repasamos cómo funciona?</Text>
         <Pressable style={styles.btnGhost} onPress={() => dispatch({ type: 'UPDATE_SETTINGS', patch: { onboarded: false } })}>
-          <Icon name="help-circle" size={16} color={colors.text} />
+          <Icon name="help-circle" size={16} color={tema.text} />
           <Text style={styles.btnGhostText}>Ver el tutorial otra vez</Text>
         </Pressable>
       </Card>
@@ -151,6 +168,7 @@ export default function SettingsScreen() {
 }
 
 function Field({ label, value, onChange, info }) {
+  const { styles } = useStyles(makeStyles)
   return (
     <View style={styles.field}>
       <View style={styles.fieldLabelRow}>
@@ -162,24 +180,29 @@ function Field({ label, value, onChange, info }) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (tema) => StyleSheet.create({
+  segmento: { flexDirection: 'row', backgroundColor: tema.slate100, borderRadius: 12, padding: 3, gap: 3, marginTop: 12 },
+  segBtn: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 9 },
+  segBtnOn: { backgroundColor: tema.card },
+  segTexto: { fontSize: 13, fontWeight: '600', color: tema.textSoft },
+  segTextoOn: { color: tema.brand, fontWeight: '800' },
   container: { padding: 16, paddingBottom: 40 },
-  h2: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 },
-  p: { fontSize: 13, color: colors.textSoft, marginBottom: 8, lineHeight: 18 },
+  h2: { fontSize: 16, fontWeight: '700', color: tema.text, marginBottom: 4 },
+  p: { fontSize: 13, color: tema.textSoft, marginBottom: 8, lineHeight: 18 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   field: { flexGrow: 1, minWidth: '45%' },
   fieldLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
-  fieldLabel: { fontSize: 12, color: colors.textSoft },
-  fieldInput: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 9, textAlign: 'center', color: colors.text },
-  timeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingVertical: 9 },
-  timeBtnText: { color: colors.text, fontWeight: '700', fontSize: 15 },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, backgroundColor: colors.slate50, borderRadius: 12, padding: 12 },
-  toggleTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
+  fieldLabel: { fontSize: 12, color: tema.textSoft },
+  fieldInput: { borderWidth: 1, borderColor: tema.border, borderRadius: 10, paddingVertical: 9, textAlign: 'center', color: tema.text },
+  timeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: tema.border, borderRadius: 10, paddingVertical: 9 },
+  timeBtnText: { color: tema.text, fontWeight: '700', fontSize: 15 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, backgroundColor: tema.slate50, borderRadius: 12, padding: 12 },
+  toggleTitle: { fontSize: 14, fontWeight: '700', color: tema.text, marginBottom: 2 },
   btnRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
   btnFlex: { flex: 1, justifyContent: 'center', paddingHorizontal: 8 },
-  btnPrimary: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.brand, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 11 },
+  btnPrimary: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: tema.brand, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 11 },
   btnPrimaryText: { color: '#fff', fontWeight: '700' },
-  btnGhost: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 11 },
-  btnGhostText: { color: colors.text, fontWeight: '700' },
-  footer: { textAlign: 'center', fontSize: 12, color: colors.textFaint },
+  btnGhost: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: tema.border, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 11 },
+  btnGhostText: { color: tema.text, fontWeight: '700' },
+  footer: { textAlign: 'center', fontSize: 12, color: tema.textFaint },
 })
